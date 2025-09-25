@@ -2,6 +2,7 @@
 Utility functions for accounts app
 """
 from django.utils import timezone
+from django.contrib.auth import authenticate
 from .models import AuditLog, LoginAttempt
 
 

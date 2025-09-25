@@ -235,8 +235,11 @@ AUTHENTICATION_BACKENDS = [
 AXES_ENABLED = True
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = 30  # minutes
-# AXES_LOCKOUT_CALLABLE = 'axes.lockout.database_lockout'
+AXES_LOCKOUT_CALLABLE = 'axes.lockout.database_lockout'
 AXES_RESET_ON_SUCCESS = True
+AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP = True
+AXES_USE_USER_AGENT = True
+AXES_VERBOSE = True if DEBUG else False
 
 # Logging Configuration
 LOGGING = {

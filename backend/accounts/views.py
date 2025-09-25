@@ -38,7 +38,7 @@ class LoginView(generics.GenericAPIView):
         ip_address = get_client_ip(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')
         
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         
         try:
             serializer.is_valid(raise_exception=True)

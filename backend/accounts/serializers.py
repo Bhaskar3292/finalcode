@@ -5,6 +5,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from .models import User
 
 
@@ -83,7 +84,8 @@ class LoginSerializer(serializers.Serializer):
                 raise serializers.ValidationError('Account is temporarily locked due to multiple failed login attempts')
             
             # Authenticate user
-            user = authenticate(username=username, password=password)
+            request = self.context.get('request')
+            user = authenticate(request=request, username=username, password=password)
             if not user:
                 raise serializers.ValidationError('Invalid credentials')
             if not user.is_active:

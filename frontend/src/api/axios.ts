@@ -6,7 +6,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
 // Configuration from environment variables
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '10000');
 const ENABLE_LOGGING = import.meta.env.VITE_ENABLE_API_LOGGING === 'true';
 
@@ -25,8 +25,8 @@ const api: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  // Ensure we never use HTTPS in development
-  httpsAgent: false,
+  // Ensure we use HTTP in development
+  withCredentials: false,
 });
 
 /**
