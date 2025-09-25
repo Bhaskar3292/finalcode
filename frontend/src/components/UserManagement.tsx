@@ -1,0 +1,532 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Users, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Save, 
+  X,
+  UserPlus,
+  Search
+} from 'lucide-react';
+import { apiService } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: 'admin' | 'contributor' | 'viewer';
+  is_active: boolean;
+  created_at: string;
+}
+
+export function UserManagement() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [newUser, setNewUser] = useState({
+    username: '',
+    password: '',
+    role: 'viewer' as const,
+    email: '',
+    first_name: '',
+    last_name: ''
+  });
+  
+  const { hasPermission } = useAuth();
+
+  useEffect(() => {
+    if (hasPermission('view_users')) {
+      loadUsers();
+    }
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const data = await apiService.getUsers();
+      setUsers(data);
+    } catch (error) {
+      setError('Failed to load users');
+      console.error('Users load error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnlockAccount = async (userId: number) => {
+    try {
+      await apiService.unlockUserAccount(userId);
+      await loadUsers(); // Refresh user list
+      setError('');
+    } catch (error) {
+      setError('Failed to unlock account');
+    }
+  };
+
+  const handleCreateUser = async () => {
+    try {
+      // Validate password strength
+      if (newUser.password.length < 12) {
+        setError('Password must be at least 12 characters long');
+        return;
+      }
+      
+      const createdUser = await apiService.createUser(newUser);
+      setUsers(prev => [createdUser.user, ...prev]);
+      setShowCreateModal(false);
+      setNewUser({
+        username: '',
+        password: '',
+        role: 'viewer',
+        email: '',
+        first_name: '',
+        last_name: ''
+      });
+      setError('');
+    } catch (error) {
+      console.error('Create user error:', error);
+      setError('Failed to create user');
+    }
+  };
+
+  const handleUpdateUser = async (user: User) => {
+    try {
+      const updatedUser = await apiService.updateUser(user.id, {
+        username: user.username,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        role: user.role,
+        is_active: user.is_active
+      });
+      
+      setUsers(prev => prev.map(u => u.id === user.id ? updatedUser.user : u));
+      setEditingUser(null);
+      setError('');
+    } catch (error) {
+      console.error('Update user error:', error);
+      setError('Failed to update user');
+    }
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        await apiService.deleteUser(userId);
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        setError('');
+      } catch (error) {
+        console.error('Delete user error:', error);
+        setError('Failed to delete user');
+      }
+    }
+  };
+
+  const filteredUsers = users.filter(user =>
+    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-purple-100 text-purple-800';
+      case 'contributor':
+        return 'bg-blue-100 text-blue-800';
+      case 'viewer':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPasswordStrength = (password: string) => {
+    let score = 0;
+    if (password.length >= 12) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score++;
+
+    if (score < 3) return { strength: 'Weak', color: 'text-red-600' };
+    if (score < 4) return { strength: 'Fair', color: 'text-yellow-600' };
+    if (score < 5) return { strength: 'Good', color: 'text-blue-600' };
+    return { strength: 'Strong', color: 'text-green-600' };
+  };
+
+  const passwordStrength = getPasswordStrength(newUser.password);
+
+  if (!hasPermission('view_users')) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <Users className="h-12 w-12 text-red-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-red-900 mb-2">Access Denied</h3>
+        <p className="text-red-700">You don't have permission to view users.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2">Loading users...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <Users className="h-6 w-6 text-blue-600" />
+          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+        </div>
+        
+        {hasPermission('create_users') && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Create User</span>
+          </button>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search users..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <X className="h-5 w-5 text-red-600 mr-2" />
+            <span className="text-red-800">{error}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Users Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                User
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Role
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Security
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Created
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredUsers.map((user) => (
+              <tr key={user.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  {editingUser?.id === user.id ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editingUser.username}
+                        onChange={(e) => setEditingUser({...editingUser, username: e.target.value})}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                        placeholder="Username"
+                      />
+                      <input
+                        type="email"
+                        value={editingUser.email}
+                        onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                        placeholder="Email"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={editingUser.first_name}
+                          onChange={(e) => setEditingUser({...editingUser, first_name: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="First name"
+                        />
+                        <input
+                          type="text"
+                          value={editingUser.last_name}
+                          onChange={(e) => setEditingUser({...editingUser, last_name: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Last name"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{user.username}</div>
+                      <div className="text-sm text-gray-500">{user.email}</div>
+                      <div className="text-sm text-gray-500">{user.first_name} {user.last_name}</div>
+                    </div>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  {editingUser?.id === user.id ? (
+                    <select
+                      value={editingUser.role}
+                      onChange={(e) => setEditingUser({...editingUser, role: e.target.value as any})}
+                      className="px-2 py-1 border border-gray-300 rounded text-sm"
+                    >
+                      <option value="admin">Administrator</option>
+                      <option value="contributor">Contributor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                  ) : (
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(user.role)}`}>
+                      {user.role === 'admin' ? 'Administrator' : user.role === 'contributor' ? 'Contributor' : 'Viewer'}
+                    </span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  {editingUser?.id === user.id ? (
+                    <select
+                      value={editingUser.is_active ? 'active' : 'inactive'}
+                      onChange={(e) => setEditingUser({...editingUser, is_active: e.target.value === 'active'})}
+                      className="px-2 py-1 border border-gray-300 rounded text-sm"
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  ) : (
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  )}
+                      {(user as any).is_account_locked && (
+                        <div>
+                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                            Locked
+                          </span>
+                        </div>
+                      )}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        (user as any).two_factor_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        2FA: {(user as any).two_factor_enabled ? 'On' : 'Off'}
+                      </span>
+                    </div>
+                    {(user as any).failed_login_attempts > 0 && (
+                      <div className="text-xs text-yellow-600">
+                        {(user as any).failed_login_attempts} failed attempts
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {new Date(user.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center space-x-2">
+                    {editingUser?.id === user.id ? (
+                      <>
+                        <button
+                          onClick={() => handleUpdateUser(editingUser)}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <Save className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setEditingUser(null)}
+                          className="text-gray-600 hover:text-gray-800"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {(user as any).is_account_locked && hasPermission('edit_users') && (
+                          <button
+                            onClick={() => handleUnlockAccount(user.id)}
+                            className="text-yellow-600 hover:text-yellow-800 text-xs px-2 py-1 border border-yellow-300 rounded"
+                            title="Unlock Account"
+                          >
+                            Unlock
+                          </button>
+                        )}
+                        {hasPermission('edit_users') && (
+                          <button
+                            onClick={() => setEditingUser(user)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
+                        {hasPermission('delete_users') && (
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Create User Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Create New User</h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter username"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter password"
+                  minLength={12}
+                  required
+                />
+                {newUser.password && (
+                  <div className="mt-1 flex items-center space-x-2">
+                    <span className="text-xs text-gray-500">Strength:</span>
+                    <span className={`text-xs font-medium ${passwordStrength.color}`}>
+                      {passwordStrength.strength}
+                    </span>
+                  </div>
+                )}
+                <div className="mt-1 text-xs text-gray-500">
+                  Must be 12+ characters with uppercase, lowercase, numbers, and symbols
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  value={newUser.role}
+                  onChange={(e) => setNewUser({...newUser, role: e.target.value as any})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="contributor">Contributor</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                <input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter email"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                  <input
+                    type="text"
+                    value={newUser.first_name}
+                    onChange={(e) => setNewUser({...newUser, first_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    value={newUser.last_name}
+                    onChange={(e) => setNewUser({...newUser, last_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateUser}
+                disabled={passwordStrength.strength === 'Weak' || !newUser.username || !newUser.password}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+              >
+                Create User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
