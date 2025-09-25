@@ -1,80 +1,215 @@
 /**
  * Centralized Axios configuration for API requests
- * Handles authentication, error handling, and token management
+ * Handles authentication, error handling, token management, and retry logic
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
-// Get API base URL from environment variable or use default
+// Configuration from environment variables
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '10000');
+const ENABLE_LOGGING = import.meta.env.VITE_ENABLE_API_LOGGING === 'true';
+
+// Token management
+const TOKEN_STORAGE_KEY = 'access_token';
+const REFRESH_TOKEN_STORAGE_KEY = 'refresh_token';
+const USER_STORAGE_KEY = 'user';
 
 /**
  * Create Axios instance with default configuration
  */
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
-  timeout: 10000, // 10 second timeout
+  // Ensure we never use HTTPS in development
+  httpsAgent: false,
 });
 
 /**
- * Request interceptor to add authentication token
+ * Token management utilities
+ */
+export const tokenManager = {
+  getAccessToken: (): string | null => {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  },
+  
+  getRefreshToken: (): string | null => {
+    return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  },
+  
+  setTokens: (accessToken: string, refreshToken: string): void => {
+    localStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+  },
+  
+  clearTokens: (): void => {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(USER_STORAGE_KEY);
+  },
+  
+  isAuthenticated: (): boolean => {
+    return !!(tokenManager.getAccessToken() && tokenManager.getRefreshToken());
+  }
+};
+
+/**
+ * Request interceptor to add authentication token and logging
  */
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    // Add authentication token if available
+    const token = tokenManager.getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Log requests in development
+    if (ENABLE_LOGGING) {
+      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+        baseURL: config.baseURL,
+        headers: config.headers,
+        data: config.data
+      });
+    }
+
     return config;
   },
   (error) => {
+    if (ENABLE_LOGGING) {
+      console.error('❌ Request Error:', error);
+    }
     return Promise.reject(error);
   }
 );
 
 /**
- * Response interceptor to handle token refresh and errors
+ * Response interceptor for token refresh and error handling
  */
 api.interceptors.response.use(
   (response: AxiosResponse) => {
+    // Log successful responses in development
+    if (ENABLE_LOGGING) {
+      console.log(`✅ API Response: ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+        status: response.status,
+        data: response.data
+      });
+    }
     return response;
   },
-  async (error) => {
-    const originalRequest = error.config;
+  async (error: AxiosError) => {
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    // If the error is 401 and we haven't already tried to refresh
+    // Log errors in development
+    if (ENABLE_LOGGING) {
+      console.error(`❌ API Error: ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, {
+        status: error.response?.status,
+        message: error.message,
+        data: error.response?.data
+      });
+    }
+
+    // Handle 401 Unauthorized - attempt token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
+        const refreshToken = tokenManager.getRefreshToken();
         if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
+          if (ENABLE_LOGGING) {
+            console.log('🔄 Attempting token refresh...');
+          }
+
+          // Create a new axios instance for refresh to avoid interceptor loops
+          const refreshApi = axios.create({
+            baseURL: API_BASE_URL,
+            timeout: API_TIMEOUT,
+          });
+
+          const response = await refreshApi.post('/api/auth/token/refresh/', {
             refresh: refreshToken,
           });
 
-          const { access } = response.data;
-          localStorage.setItem('access_token', access);
+          const { access, refresh: newRefresh } = response.data;
+          
+          // Update stored tokens
+          tokenManager.setTokens(access, newRefresh || refreshToken);
 
           // Retry the original request with new token
-          originalRequest.headers.Authorization = `Bearer ${access}`;
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${access}`;
+          }
+
+          if (ENABLE_LOGGING) {
+            console.log('✅ Token refreshed successfully, retrying request...');
+          }
+
           return api(originalRequest);
         }
       } catch (refreshError) {
+        if (ENABLE_LOGGING) {
+          console.error('❌ Token refresh failed:', refreshError);
+        }
+        
         // Refresh failed, clear tokens and redirect to login
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user');
-        window.location.href = '/';
+        tokenManager.clearTokens();
+        
+        // Dispatch custom event for auth failure
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+        
         return Promise.reject(refreshError);
       }
+    }
+
+    // Handle network errors
+    if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+      const enhancedError = new Error(
+        `Cannot connect to backend server at ${API_BASE_URL}. Please ensure the Django server is running.`
+      );
+      return Promise.reject(enhancedError);
+    }
+
+    // Handle SSL protocol errors specifically
+    if (error.message.includes('ERR_SSL_PROTOCOL_ERROR')) {
+      const enhancedError = new Error(
+        `SSL Protocol Error: The backend server at ${API_BASE_URL} does not support HTTPS. Please check your API URL configuration.`
+      );
+      return Promise.reject(enhancedError);
     }
 
     return Promise.reject(error);
   }
 );
+
+/**
+ * API health check
+ */
+export const checkApiHealth = async (): Promise<boolean> => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/health/`, { timeout: 5000 });
+    return response.status === 200;
+  } catch (error) {
+    console.error('API health check failed:', error);
+    return false;
+  }
+};
+
+/**
+ * Debug API configuration
+ */
+export const debugApiConfig = () => {
+  console.log('🔧 API Configuration Debug:', {
+    baseURL: API_BASE_URL,
+    timeout: API_TIMEOUT,
+    enableLogging: ENABLE_LOGGING,
+    hasAccessToken: !!tokenManager.getAccessToken(),
+    hasRefreshToken: !!tokenManager.getRefreshToken(),
+    isAuthenticated: tokenManager.isAuthenticated()
+  });
+};
 
 export default api;

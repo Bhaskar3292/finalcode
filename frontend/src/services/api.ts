@@ -1,55 +1,38 @@
 /**
  * API service for handling HTTP requests to Django backend
- * Uses centralized Axios configuration with authentication and error handling
+ * Uses centralized Axios configuration with comprehensive error handling
  */
 
-import api from '../api/axios';
+import api, { tokenManager } from '../api/axios';
 import { 
   LoginRequest, 
   LoginResponse, 
   User,
+  RegisterRequest,
   PasswordResetRequest,
   PasswordResetConfirm,
-  EmailVerification,
-  ApiError
+  EmailVerification
 } from '../types/auth';
 
 class ApiService {
   /**
-   * Store tokens in localStorage
-   */
-  private storeTokens(access: string, refresh: string): void {
-    localStorage.setItem('access_token', access);
-    localStorage.setItem('refresh_token', refresh);
-  }
-
-  /**
-   * Clear tokens from localStorage
-   */
-  private clearTokens(): void {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-  }
-
-  /**
    * User registration
    */
-  async register(data: any): Promise<any> {
+  async register(data: RegisterRequest): Promise<any> {
     try {
-      const response = await api.post('/auth/register/', data);
+      const response = await api.post('/api/auth/register/', data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Registration failed');
+      throw new Error(error.response?.data?.error || error.message || 'Registration failed');
     }
   }
 
   /**
-   * User login
+   * User login with comprehensive error handling
    */
   async login(data: LoginRequest): Promise<LoginResponse> {
     try {
-      const response = await api.post('/auth/login/', {
+      const response = await api.post('/api/auth/login/', {
         email: data.email,
         password: data.password,
         totp_token: data.totp_token
@@ -58,12 +41,33 @@ class ApiService {
       const responseData = response.data;
 
       // Store tokens and user data
-      this.storeTokens(responseData.tokens.access, responseData.tokens.refresh);
-      localStorage.setItem('user', JSON.stringify(responseData.user));
+      if (responseData.tokens) {
+        tokenManager.setTokens(responseData.tokens.access, responseData.tokens.refresh);
+      }
+      
+      if (responseData.user) {
+        localStorage.setItem('user', JSON.stringify(responseData.user));
+      }
 
       return responseData;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Login failed');
+      // Enhanced error handling for common login issues
+      if (error.response?.status === 400) {
+        const errorData = error.response.data;
+        if (typeof errorData === 'string') {
+          throw new Error(errorData);
+        } else if (errorData.error) {
+          throw new Error(errorData.error);
+        } else if (errorData.non_field_errors) {
+          throw new Error(errorData.non_field_errors[0]);
+        }
+      } else if (error.response?.status === 401) {
+        throw new Error('Invalid credentials');
+      } else if (error.response?.status === 429) {
+        throw new Error('Too many login attempts. Please try again later.');
+      }
+      
+      throw new Error(error.message || 'Login failed');
     }
   }
 
@@ -76,10 +80,10 @@ class ApiService {
     confirm_password: string;
   }): Promise<{ message: string }> {
     try {
-      const response = await api.post('/auth/password/change/', data);
+      const response = await api.post('/api/auth/password/change/', data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Password change failed');
+      throw new Error(error.response?.data?.error || error.message || 'Password change failed');
     }
   }
 
@@ -92,10 +96,10 @@ class ApiService {
     backup_codes: string[];
   }> {
     try {
-      const response = await api.get('/auth/2fa/setup/');
+      const response = await api.get('/api/auth/2fa/setup/');
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || '2FA setup failed');
+      throw new Error(error.response?.data?.error || error.message || '2FA setup failed');
     }
   }
 
@@ -104,10 +108,10 @@ class ApiService {
    */
   async enable2FA(totp_token: string): Promise<{ message: string }> {
     try {
-      const response = await api.post('/auth/2fa/setup/', { totp_token });
+      const response = await api.post('/api/auth/2fa/setup/', { totp_token });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || '2FA enable failed');
+      throw new Error(error.response?.data?.error || error.message || '2FA enable failed');
     }
   }
 
@@ -116,10 +120,10 @@ class ApiService {
    */
   async disable2FA(): Promise<{ message: string }> {
     try {
-      const response = await api.post('/auth/2fa/disable/');
+      const response = await api.post('/api/auth/2fa/disable/');
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || '2FA disable failed');
+      throw new Error(error.response?.data?.error || error.message || '2FA disable failed');
     }
   }
 
@@ -128,10 +132,10 @@ class ApiService {
    */
   async unlockUserAccount(userId: number): Promise<{ message: string }> {
     try {
-      const response = await api.post(`/auth/users/${userId}/unlock/`);
+      const response = await api.post(`/api/auth/users/${userId}/unlock/`);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Account unlock failed');
+      throw new Error(error.response?.data?.error || error.message || 'Account unlock failed');
     }
   }
 
@@ -140,15 +144,15 @@ class ApiService {
    */
   async logout(): Promise<void> {
     try {
-      const refreshToken = localStorage.getItem('refresh_token');
+      const refreshToken = tokenManager.getRefreshToken();
       
       if (refreshToken) {
-        await api.post('/auth/logout/', { refresh_token: refreshToken });
+        await api.post('/api/auth/logout/', { refresh_token: refreshToken });
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      this.clearTokens();
+      tokenManager.clearTokens();
     }
   }
 
@@ -157,10 +161,10 @@ class ApiService {
    */
   async getUserProfile(): Promise<User> {
     try {
-      const response = await api.get('/auth/profile/');
+      const response = await api.get('/api/auth/profile/');
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get user profile');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get user profile');
     }
   }
 
@@ -169,10 +173,10 @@ class ApiService {
    */
   async requestPasswordReset(data: PasswordResetRequest): Promise<{ message: string }> {
     try {
-      const response = await api.post('/auth/password-reset/', data);
+      const response = await api.post('/api/auth/password-reset/', data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Password reset request failed');
+      throw new Error(error.response?.data?.error || error.message || 'Password reset request failed');
     }
   }
 
@@ -181,10 +185,10 @@ class ApiService {
    */
   async confirmPasswordReset(data: PasswordResetConfirm): Promise<{ message: string }> {
     try {
-      const response = await api.post('/auth/password-reset/confirm/', data);
+      const response = await api.post('/api/auth/password-reset/confirm/', data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Password reset failed');
+      throw new Error(error.response?.data?.error || error.message || 'Password reset failed');
     }
   }
 
@@ -193,10 +197,10 @@ class ApiService {
    */
   async verifyEmail(data: EmailVerification): Promise<{ message: string }> {
     try {
-      const response = await api.post('/auth/verify-email/', data);
+      const response = await api.post('/api/auth/verify-email/', data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Email verification failed');
+      throw new Error(error.response?.data?.error || error.message || 'Email verification failed');
     }
   }
 
@@ -204,9 +208,7 @@ class ApiService {
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
-    const token = localStorage.getItem('access_token');
-    const user = localStorage.getItem('user');
-    return !!(token && user);
+    return tokenManager.isAuthenticated();
   }
 
   /**
@@ -224,10 +226,10 @@ class ApiService {
    */
   async getLocations(): Promise<any[]> {
     try {
-      const response = await api.get('/facilities/locations/');
+      const response = await api.get('/api/facilities/locations/');
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get locations');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get locations');
     }
   }
 
@@ -236,10 +238,10 @@ class ApiService {
    */
   async createLocation(data: any): Promise<any> {
     try {
-      const response = await api.post('/facilities/locations/', data);
+      const response = await api.post('/api/facilities/locations/', data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to create location');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to create location');
     }
   }
 
@@ -248,10 +250,10 @@ class ApiService {
    */
   async getLocation(id: number): Promise<any> {
     try {
-      const response = await api.get(`/facilities/locations/${id}/`);
+      const response = await api.get(`/api/facilities/locations/${id}/`);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get location');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get location');
     }
   }
 
@@ -260,10 +262,10 @@ class ApiService {
    */
   async updateLocation(id: number, data: any): Promise<any> {
     try {
-      const response = await api.patch(`/facilities/locations/${id}/`, data);
+      const response = await api.patch(`/api/facilities/locations/${id}/`, data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to update location');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to update location');
     }
   }
 
@@ -272,9 +274,9 @@ class ApiService {
    */
   async deleteLocation(id: number): Promise<void> {
     try {
-      await api.delete(`/facilities/locations/${id}/`);
+      await api.delete(`/api/facilities/locations/${id}/`);
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to delete location');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to delete location');
     }
   }
 
@@ -283,10 +285,10 @@ class ApiService {
    */
   async getLocationDashboard(locationId: number): Promise<any> {
     try {
-      const response = await api.get(`/facilities/locations/${locationId}/dashboard/`);
+      const response = await api.get(`/api/facilities/locations/${locationId}/dashboard/`);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get dashboard');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get dashboard');
     }
   }
 
@@ -295,10 +297,10 @@ class ApiService {
    */
   async updateDashboardSection(sectionId: number, data: any): Promise<any> {
     try {
-      const response = await api.patch(`/facilities/dashboard-section-data/${sectionId}/`, { data });
+      const response = await api.patch(`/api/facilities/dashboard-section-data/${sectionId}/`, { data });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to update dashboard section');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to update dashboard section');
     }
   }
 
@@ -307,10 +309,10 @@ class ApiService {
    */
   async getUserPermissions(): Promise<any> {
     try {
-      const response = await api.get('/permissions/user/permissions/');
+      const response = await api.get('/api/permissions/user/permissions/');
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get permissions');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get permissions');
     }
   }
 
@@ -321,10 +323,10 @@ class ApiService {
     try {
       const params = new URLSearchParams();
       permissionCodes.forEach(code => params.append('permission_codes', code));
-      const response = await api.get(`/permissions/user/check/?${params.toString()}`);
+      const response = await api.get(`/api/permissions/user/check/?${params.toString()}`);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to check permissions');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to check permissions');
     }
   }
 
@@ -333,10 +335,10 @@ class ApiService {
    */
   async getPermissionsMatrix(): Promise<any> {
     try {
-      const response = await api.get('/permissions/roles/permissions/matrix/');
+      const response = await api.get('/api/permissions/roles/permissions/matrix/');
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get permissions matrix');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get permissions matrix');
     }
   }
 
@@ -345,13 +347,13 @@ class ApiService {
    */
   async updateRolePermissions(role: string, permissions: any[]): Promise<any> {
     try {
-      const response = await api.post('/permissions/roles/permissions/bulk-update/', { 
+      const response = await api.post('/api/permissions/roles/permissions/bulk-update/', { 
         role, 
         permissions 
       });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to update role permissions');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to update role permissions');
     }
   }
 
@@ -360,10 +362,10 @@ class ApiService {
    */
   async getUsers(): Promise<any[]> {
     try {
-      const response = await api.get('/auth/users/');
+      const response = await api.get('/api/auth/users/');
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get users');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get users');
     }
   }
 
@@ -372,10 +374,10 @@ class ApiService {
    */
   async createUser(data: any): Promise<any> {
     try {
-      const response = await api.post('/auth/users/create/', data);
+      const response = await api.post('/api/auth/users/create/', data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to create user');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to create user');
     }
   }
 
@@ -384,10 +386,10 @@ class ApiService {
    */
   async updateUser(id: number, data: any): Promise<any> {
     try {
-      const response = await api.patch(`/auth/users/${id}/`, data);
+      const response = await api.patch(`/api/auth/users/${id}/`, data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to update user');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to update user');
     }
   }
 
@@ -396,9 +398,9 @@ class ApiService {
    */
   async deleteUser(id: number): Promise<void> {
     try {
-      await api.delete(`/auth/users/${id}/`);
+      await api.delete(`/api/auth/users/${id}/`);
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to delete user');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to delete user');
     }
   }
 
@@ -408,12 +410,12 @@ class ApiService {
   async getTanks(locationId?: number): Promise<any[]> {
     try {
       const endpoint = locationId 
-        ? `/facilities/locations/${locationId}/tanks/`
-        : '/facilities/tanks/';
+        ? `/api/facilities/locations/${locationId}/tanks/`
+        : '/api/facilities/tanks/';
       const response = await api.get(endpoint);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get tanks');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get tanks');
     }
   }
 
@@ -423,12 +425,12 @@ class ApiService {
   async createTank(data: any, locationId?: number): Promise<any> {
     try {
       const endpoint = locationId 
-        ? `/facilities/locations/${locationId}/tanks/`
-        : '/facilities/tanks/';
+        ? `/api/facilities/locations/${locationId}/tanks/`
+        : '/api/facilities/tanks/';
       const response = await api.post(endpoint, data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to create tank');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to create tank');
     }
   }
 
@@ -437,10 +439,10 @@ class ApiService {
    */
   async updateTank(id: number, data: any): Promise<any> {
     try {
-      const response = await api.patch(`/facilities/tanks/${id}/`, data);
+      const response = await api.patch(`/api/facilities/tanks/${id}/`, data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to update tank');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to update tank');
     }
   }
 
@@ -449,9 +451,9 @@ class ApiService {
    */
   async deleteTank(id: number): Promise<void> {
     try {
-      await api.delete(`/facilities/tanks/${id}/`);
+      await api.delete(`/api/facilities/tanks/${id}/`);
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to delete tank');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to delete tank');
     }
   }
 
@@ -461,12 +463,12 @@ class ApiService {
   async getPermits(locationId?: number): Promise<any[]> {
     try {
       const endpoint = locationId 
-        ? `/facilities/locations/${locationId}/permits/`
-        : '/facilities/permits/';
+        ? `/api/facilities/locations/${locationId}/permits/`
+        : '/api/facilities/permits/';
       const response = await api.get(endpoint);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get permits');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get permits');
     }
   }
 
@@ -476,12 +478,12 @@ class ApiService {
   async createPermit(data: any, locationId?: number): Promise<any> {
     try {
       const endpoint = locationId 
-        ? `/facilities/locations/${locationId}/permits/`
-        : '/facilities/permits/';
+        ? `/api/facilities/locations/${locationId}/permits/`
+        : '/api/facilities/permits/';
       const response = await api.post(endpoint, data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to create permit');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to create permit');
     }
   }
 
@@ -490,10 +492,10 @@ class ApiService {
    */
   async updatePermit(id: number, data: any): Promise<any> {
     try {
-      const response = await api.patch(`/facilities/permits/${id}/`, data);
+      const response = await api.patch(`/api/facilities/permits/${id}/`, data);
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to update permit');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to update permit');
     }
   }
 
@@ -502,9 +504,9 @@ class ApiService {
    */
   async deletePermit(id: number): Promise<void> {
     try {
-      await api.delete(`/facilities/permits/${id}/`);
+      await api.delete(`/api/facilities/permits/${id}/`);
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to delete permit');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to delete permit');
     }
   }
 
@@ -513,28 +515,29 @@ class ApiService {
    */
   async getDashboardStats(): Promise<any> {
     try {
-      const response = await api.get('/facilities/stats/');
+      const response = await api.get('/api/facilities/stats/');
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to get dashboard stats');
+      throw new Error(error.response?.data?.error || error.message || 'Failed to get dashboard stats');
     }
   }
 
   /**
-   * Check if user is authenticated
+   * Test API connection
    */
-  isAuthenticated(): boolean {
-    const token = localStorage.getItem('access_token');
-    const user = localStorage.getItem('user');
-    return !!(token && user);
-  }
-
-  /**
-   * Get stored user data
-   */
-  getStoredUser(): User | null {
-    const userData = localStorage.getItem('user');
-    return userData ? JSON.parse(userData) : null;
+  async testConnection(): Promise<{ status: string; message: string }> {
+    try {
+      const response = await api.get('/api/health/');
+      return {
+        status: 'success',
+        message: 'Backend connection successful'
+      };
+    } catch (error: any) {
+      return {
+        status: 'error',
+        message: error.message || 'Backend connection failed'
+      };
+    }
   }
 }
 
