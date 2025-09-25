@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Menu, 
   Bell, 
@@ -18,10 +19,16 @@ interface TopNavigationProps {
 }
 
 export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange }: TopNavigationProps) {
+  const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFacilityDropdown, setShowFacilityDropdown] = useState(false);
   const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   // Mock facilities data - in production this would come from an API
   const facilities = [
@@ -200,7 +207,7 @@ export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange
                 </button>
                 <hr className="my-1" />
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
                 >
                   <LogOut className="h-4 w-4 inline mr-2" />

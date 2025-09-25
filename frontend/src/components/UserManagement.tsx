@@ -31,12 +31,13 @@ export function UserManagement() {
   });
   
   const { hasPermission } = useAuth();
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
-    if (user?.is_superuser || hasPermission('view_users')) {
+    if (currentUser?.is_superuser || hasPermission('view_users')) {
       loadUsers();
     }
-  }, []);
+  }, [currentUser]);
 
   const loadUsers = async () => {
     try {
@@ -156,7 +157,7 @@ export function UserManagement() {
 
   const passwordStrength = getPasswordStrength(newUser.password);
 
-  if (!user?.is_superuser && !hasPermission('view_users')) {
+  if (!currentUser?.is_superuser && !hasPermission('view_users')) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <Users className="h-12 w-12 text-red-400 mx-auto mb-4" />
@@ -185,6 +186,7 @@ export function UserManagement() {
         </div>
         
         {(user?.is_superuser || hasPermission('create_users')) && (
+        {(currentUser?.is_superuser || hasPermission('create_users')) && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

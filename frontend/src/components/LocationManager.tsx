@@ -30,12 +30,13 @@ export function LocationManager() {
   const [view, setView] = useState<'list' | 'dashboard'>('list');
   
   const { hasPermission } = useAuth();
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
-    if (user?.is_superuser || hasPermission('view_locations')) {
+    if (currentUser?.is_superuser || hasPermission('view_locations')) {
       loadLocations();
     }
-  }, []);
+  }, [currentUser]);
 
   const loadLocations = async () => {
     try {
@@ -110,6 +111,7 @@ export function LocationManager() {
   );
 
   if (!user?.is_superuser && !hasPermission('view_locations')) {
+  if (!currentUser?.is_superuser && !hasPermission('view_locations')) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <Building2 className="h-12 w-12 text-red-400 mx-auto mb-4" />
@@ -158,7 +160,7 @@ export function LocationManager() {
           <h2 className="text-2xl font-bold text-gray-900">Location Management</h2>
         </div>
         
-        {(user?.is_superuser || hasPermission('create_locations')) && (
+        {(currentUser?.is_superuser || hasPermission('create_locations')) && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -272,7 +274,7 @@ export function LocationManager() {
                       View Dashboard
                     </button>
                     
-                    {(user?.is_superuser || hasPermission('edit_locations')) && (
+                    {(currentUser?.is_superuser || hasPermission('edit_locations')) && (
                       <button
                         onClick={() => setEditingLocation(location)}
                         className="text-gray-600 hover:text-gray-800"
@@ -281,7 +283,7 @@ export function LocationManager() {
                       </button>
                     )}
                     
-                    {(user?.is_superuser || hasPermission('delete_locations')) && (
+                    {(currentUser?.is_superuser || hasPermission('delete_locations')) && (
                       <button
                         onClick={() => handleDeleteLocation(location.id)}
                         className="text-red-600 hover:text-red-800"
@@ -305,6 +307,7 @@ export function LocationManager() {
             {searchTerm ? `No locations match "${searchTerm}"` : 'Get started by creating your first location.'}
           </p>
           {(user?.is_superuser || hasPermission('create_locations')) && !searchTerm && (
+          {(currentUser?.is_superuser || hasPermission('create_locations')) && !searchTerm && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mx-auto"

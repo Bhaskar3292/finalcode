@@ -146,13 +146,17 @@ class ApiService {
     try {
       const refreshToken = tokenManager.getRefreshToken();
       
-      // Always call logout endpoint, even without refresh token
-      const logoutData = refreshToken ? { refresh_token: refreshToken } : {};
-      
-      console.log('Logout request data:', logoutData);
-      
-      const response = await api.post('/api/auth/logout/', logoutData);
-      console.log('Logout response:', response.data);
+      // Only call logout endpoint if we have a refresh token
+      if (refreshToken) {
+        const logoutData = { refresh_token: refreshToken };
+        
+        console.log('Logout request data:', logoutData);
+        
+        const response = await api.post('/api/auth/logout/', logoutData);
+        console.log('Logout response:', response.data);
+      } else {
+        console.log('No refresh token available, skipping API call');
+      }
       
     } catch (error) {
       console.error('Logout API error:', error);

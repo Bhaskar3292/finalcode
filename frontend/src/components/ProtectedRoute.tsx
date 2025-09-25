@@ -5,8 +5,8 @@
  */
 
 import React, { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
-import { LoginForm } from './LoginForm';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -39,7 +39,7 @@ export function ProtectedRoute({
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
-    return fallback || <LoginForm />;
+    return fallback || <Navigate to="/login" replace />;
   }
 
   // Check required permission if specified
@@ -51,12 +51,7 @@ export function ProtectedRoute({
             <strong className="font-bold">Access Denied!</strong>
             <span className="block sm:inline"> You don't have permission to access this page.</span>
           </div>
-          <button
-            onClick={() => window.history.back()}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Go Back
-          </button>
+          <Navigate to="/dashboard" replace />
         </div>
       </div>
     );

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LogIn, Building2, ArrowLeft, UserPlus, Mail, Eye, EyeOff } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 
 export function LoginForm() {
+  const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<'login' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +34,10 @@ export function LoginForm() {
           password,
           totp_token: totpToken 
         });
-        if (!loginSuccess) {
+        if (loginSuccess) {
+          // Redirect to dashboard on successful login
+          navigate('/dashboard', { replace: true });
+        } else {
           const errorMsg = authError || 'Login failed. Please check your credentials.';
           setError(errorMsg);
           

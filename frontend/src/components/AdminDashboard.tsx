@@ -39,6 +39,7 @@ interface Role {
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('users');
   const { user } = useAuth();
+  const { user: currentUser } = useAuth();
 
   const tabs = [
     { id: 'users', label: 'User Management' },
@@ -46,7 +47,7 @@ export function AdminDashboard() {
   ];
 
   // Ensure superusers can access admin dashboard
-  if (!user?.is_superuser && user?.role !== 'admin') {
+  if (!currentUser?.is_superuser && currentUser?.role !== 'admin') {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <Shield className="h-12 w-12 text-red-400 mx-auto mb-4" />
