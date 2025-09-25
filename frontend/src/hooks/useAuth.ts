@@ -208,13 +208,19 @@ export function useAuth(): UseAuthReturn {
   const hasPermission = (permission: string): boolean => {
     if (!user) return false;
     
+    // Superusers have all permissions
+    if (user.is_superuser) return true;
+    
+    // Use effective role for permission checks
+    const effectiveRole = user.effective_role || user.role;
+    
     const permissions = {
       admin: ['read', 'write', 'delete', 'manage_users', 'system_config', 'create_users', 'edit_users', 'delete_users', 'view_users'],
       contributor: ['read', 'write', 'update_records', 'create_locations', 'edit_locations', 'edit_dashboard', 'create_tanks', 'edit_tanks', 'create_permits', 'edit_permits'],
       viewer: ['read']
     };
     
-    return permissions[user.role]?.includes(permission) || false;
+    return permissions[effectiveRole as keyof typeof permissions]?.includes(permission) || false;
   };
 
   /**

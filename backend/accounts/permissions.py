@@ -12,7 +12,7 @@ class IsAdminUser(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.role == 'admin'
+            (request.user.role == 'admin' or request.user.is_superuser)
         )
 
 
@@ -24,7 +24,7 @@ class IsContributorOrAdmin(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.role in ['admin', 'contributor']
+            (request.user.role in ['admin', 'contributor'] or request.user.is_superuser)
         )
 
 
@@ -39,7 +39,7 @@ class CanEditFacility(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.role in ['admin', 'contributor']
+            (request.user.role in ['admin', 'contributor'] or request.user.is_superuser)
         )
     
     def has_object_permission(self, request, view, obj):
@@ -47,6 +47,6 @@ class CanEditFacility(permissions.BasePermission):
             return True
         
         if request.method == 'DELETE':
-            return request.user.role == 'admin'
+            return request.user.role == 'admin' or request.user.is_superuser
         
-        return request.user.role in ['admin', 'contributor']
+        return request.user.role in ['admin', 'contributor'] or request.user.is_superuser

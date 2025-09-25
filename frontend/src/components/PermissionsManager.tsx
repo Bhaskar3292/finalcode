@@ -38,10 +38,10 @@ export function PermissionsManager() {
   const [hasChanges, setHasChanges] = useState(false);
   const [originalMatrix, setOriginalMatrix] = useState<PermissionsMatrix>({});
   
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
 
   useEffect(() => {
-    if (hasPermission('manage_users')) {
+    if (user?.is_superuser || hasPermission('manage_users')) {
       loadPermissionsMatrix();
     }
   }, []);
@@ -125,7 +125,7 @@ export function PermissionsManager() {
     }
   };
 
-  if (!hasPermission('manage_users')) {
+  if (!user?.is_superuser && !hasPermission('manage_users')) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <Shield className="h-12 w-12 text-red-400 mx-auto mb-4" />

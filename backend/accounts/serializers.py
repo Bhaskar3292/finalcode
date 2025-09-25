@@ -16,12 +16,15 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=12)
     two_factor_enabled = serializers.BooleanField(read_only=True)
     is_account_locked = serializers.SerializerMethodField()
+    is_superuser = serializers.BooleanField(read_only=True)
+    effective_role = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 
                  'role', 'is_active', 'created_at', 'password', 
-                 'two_factor_enabled', 'is_account_locked', 'last_login']
+                 'two_factor_enabled', 'is_account_locked', 'last_login',
+                 'is_superuser', 'effective_role']
         extra_kwargs = {
             'password': {'write_only': True},
             'created_at': {'read_only': True},
@@ -29,6 +32,12 @@ class UserSerializer(serializers.ModelSerializer):
     
     def get_is_account_locked(self, obj):
         return obj.is_account_locked()
+    
+    def get_effective_role(self, obj):
+        """Return effective role considering superuser status"""
+        if obj.is_superuser:
+            return 'admin'
+        return obj.role
     
     def validate_password(self, value):
         """Validate password using Django's password validators"""

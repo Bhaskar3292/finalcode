@@ -236,9 +236,16 @@ class CreateUserView(generics.CreateAPIView):
     Create new user endpoint (admin only)
     """
     serializer_class = CreateUserSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated]
     
     def create(self, request, *args, **kwargs):
+        # Check if user is admin or superuser
+        if not (request.user.role == 'admin' or request.user.is_superuser):
+            return Response(
+                {'error': 'Only administrators can create users'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -257,6 +264,7 @@ class CreateUserView(generics.CreateAPIView):
             'message': 'User created successfully',
             'user': UserListSerializer(user).data
         }, status=status.HTTP_201_CREATED)
+    
 
 
 class UserListView(generics.ListAPIView):
@@ -264,8 +272,14 @@ class UserListView(generics.ListAPIView):
     List all users endpoint (admin only)
     """
     serializer_class = UserListSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated]
     queryset = User.objects.all().order_by('-created_at')
+    
+    def get_queryset(self):
+        # Check if user is admin or superuser
+        if not (self.request.user.role == 'admin' or self.request.user.is_superuser):
+            return User.objects.none()
+        return User.objects.all().order_by('-created_at')
 
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -273,10 +287,23 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     User detail endpoint (admin only)
     """
     serializer_class = UserSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated]
     queryset = User.objects.all()
     
+    def get_queryset(self):
+        # Check if user is admin or superuser
+        if not (self.request.user.role == 'admin' or self.request.user.is_superuser):
+            return User.objects.none()
+        return User.objects.all()
+    
     def update(self, request, *args, **kwargs):
+        # Check if user is admin or superuser
+        if not (request.user.role == 'admin' or request.user.is_superuser):
+            return Response(
+                {'error': 'Only administrators can update users'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         old_role = instance.role
@@ -305,6 +332,13 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         })
     
     def destroy(self, request, *args, **kwargs):
+        # Check if user is admin or superuser
+        if not (request.user.role == 'admin' or request.user.is_superuser):
+            return Response(
+                {'error': 'Only administrators can delete users'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         instance = self.get_object()
         if instance == request.user:
             return Response(
@@ -327,11 +361,18 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 @api_view(['POST'])
-@permission_classes([IsAdminUser])
+@permission_classes([permissions.IsAuthenticated])
 def unlock_user_account(request, user_id):
     """
     Unlock a user account (admin only)
     """
+    # Check if user is admin or superuser
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        return Response(
+            {'error': 'Only administrators can unlock accounts'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
     try:
         user = User.objects.get(id=user_id)
         user.unlock_account()

@@ -32,7 +32,7 @@ class LocationListCreateView(generics.ListCreateAPIView):
     
     def perform_create(self, serializer):
         # Only admins and contributors can create locations
-        if self.request.user.role not in ['admin', 'contributor']:
+        if self.request.user.role not in ['admin', 'contributor'] and not self.request.user.is_superuser:
             raise permissions.PermissionDenied("Only admins and contributors can create locations")
         
         with transaction.atomic():

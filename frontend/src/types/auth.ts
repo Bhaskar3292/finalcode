@@ -10,6 +10,8 @@ export interface User {
   first_name: string;
   last_name: string;
   role: 'admin' | 'contributor' | 'viewer';
+  is_superuser?: boolean;
+  effective_role?: string;
   organization?: string;
   phone?: string;
   is_active: boolean;

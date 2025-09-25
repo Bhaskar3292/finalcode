@@ -216,7 +216,14 @@ class ApiService {
    */
   getStoredUser(): User | null {
     const userData = localStorage.getItem('user');
-    return userData ? JSON.parse(userData) : null;
+    const user = userData ? JSON.parse(userData) : null;
+    
+    // Ensure superuser status is properly handled
+    if (user && user.is_superuser) {
+      user.effective_role = 'admin';
+    }
+    
+    return user;
   }
 
   // Facility Management API methods

@@ -1,16 +1,5 @@
 import React from 'react';
-import { 
-  Home, 
-  Building2, 
-  Zap, 
-  Shield, 
-  FileText, 
-  Settings, 
-  Users,
-  ChevronLeft,
-  ChevronRight,
-  Menu
-} from 'lucide-react';
+import { Hop as Home, Building2, Zap, Shield, FileText, Settings, Users, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface SidebarProps {
@@ -21,7 +10,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, activeView, onViewChange, onToggleSidebar }: SidebarProps) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
@@ -32,7 +21,8 @@ export function Sidebar({ collapsed, activeView, onViewChange, onToggleSidebar }
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  if (hasPermission('manage_users')) {
+  // Show admin panel for superusers or users with manage_users permission
+  if (user?.is_superuser || hasPermission('manage_users')) {
     menuItems.push({ id: 'admin', label: 'Admin Panel', icon: Users });
   }
 

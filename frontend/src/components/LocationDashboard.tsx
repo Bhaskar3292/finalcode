@@ -1,13 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Edit, 
-  Save, 
-  X, 
-  Trash2,
-  Plus,
-  AlertCircle
-} from 'lucide-react';
+import { Building2, CreditCard as Edit, Save, X, Trash2, Plus, CircleAlert as AlertCircle } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -55,6 +47,17 @@ export function LocationDashboard({ locationId, locationName }: LocationDashboar
     try {
       const userPermissions = await apiService.getUserPermissions();
       setPermissions(userPermissions);
+      
+      // Superusers get all permissions
+      if (user?.is_superuser) {
+        setPermissions(prev => ({
+          ...prev,
+          edit_dashboard: true,
+          delete_locations: true,
+          create_locations: true,
+          view_locations: true
+        }));
+      }
     } catch (error) {
       console.error('Failed to load permissions:', error);
     }

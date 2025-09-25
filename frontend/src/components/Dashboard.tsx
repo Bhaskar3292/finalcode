@@ -9,7 +9,7 @@ export function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedFacility, setSelectedFacility] = useState<any>(null);
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
 
   const handleFacilitySelect = (facility: any) => {
     setSelectedFacility(facility);
@@ -36,7 +36,7 @@ export function Dashboard() {
         />
         
         <main className="flex-1 overflow-auto">
-          {activeView === 'admin' && hasPermission('manage_users') ? (
+          {activeView === 'admin' && (user?.is_superuser || hasPermission('manage_users')) ? (
             <AdminDashboard />
           ) : (
             <MainContent 

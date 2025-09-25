@@ -1,14 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X,
-  MapPin,
-  Search
-} from 'lucide-react';
+import { Building2, Plus, CreditCard as Edit, Trash2, Save, X, MapPin, Search } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { LocationDashboard } from './LocationDashboard';
@@ -41,7 +32,7 @@ export function LocationManager() {
   const { hasPermission } = useAuth();
 
   useEffect(() => {
-    if (hasPermission('view_locations')) {
+    if (user?.is_superuser || hasPermission('view_locations')) {
       loadLocations();
     }
   }, []);
@@ -118,7 +109,7 @@ export function LocationManager() {
     location.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!hasPermission('view_locations')) {
+  if (!user?.is_superuser && !hasPermission('view_locations')) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <Building2 className="h-12 w-12 text-red-400 mx-auto mb-4" />
@@ -167,7 +158,7 @@ export function LocationManager() {
           <h2 className="text-2xl font-bold text-gray-900">Location Management</h2>
         </div>
         
-        {hasPermission('create_locations') && (
+        {(user?.is_superuser || hasPermission('create_locations')) && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -281,7 +272,7 @@ export function LocationManager() {
                       View Dashboard
                     </button>
                     
-                    {hasPermission('edit_locations') && (
+                    {(user?.is_superuser || hasPermission('edit_locations')) && (
                       <button
                         onClick={() => setEditingLocation(location)}
                         className="text-gray-600 hover:text-gray-800"
@@ -290,7 +281,7 @@ export function LocationManager() {
                       </button>
                     )}
                     
-                    {hasPermission('delete_locations') && (
+                    {(user?.is_superuser || hasPermission('delete_locations')) && (
                       <button
                         onClick={() => handleDeleteLocation(location.id)}
                         className="text-red-600 hover:text-red-800"
@@ -313,7 +304,7 @@ export function LocationManager() {
           <p className="text-gray-500 mb-4">
             {searchTerm ? `No locations match "${searchTerm}"` : 'Get started by creating your first location.'}
           </p>
-          {hasPermission('create_locations') && !searchTerm && (
+          {(user?.is_superuser || hasPermission('create_locations')) && !searchTerm && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mx-auto"

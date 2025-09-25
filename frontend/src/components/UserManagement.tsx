@@ -1,14 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X,
-  UserPlus,
-  Search
-} from 'lucide-react';
+import { Users, Plus, CreditCard as Edit, Trash2, Save, X, UserPlus, Search } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -42,7 +33,7 @@ export function UserManagement() {
   const { hasPermission } = useAuth();
 
   useEffect(() => {
-    if (hasPermission('view_users')) {
+    if (user?.is_superuser || hasPermission('view_users')) {
       loadUsers();
     }
   }, []);
@@ -165,7 +156,7 @@ export function UserManagement() {
 
   const passwordStrength = getPasswordStrength(newUser.password);
 
-  if (!hasPermission('view_users')) {
+  if (!user?.is_superuser && !hasPermission('view_users')) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <Users className="h-12 w-12 text-red-400 mx-auto mb-4" />
@@ -193,7 +184,7 @@ export function UserManagement() {
           <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
         </div>
         
-        {hasPermission('create_users') && (
+        {(user?.is_superuser || hasPermission('create_users')) && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -375,7 +366,7 @@ export function UserManagement() {
                       </>
                     ) : (
                       <>
-                        {(user as any).is_account_locked && hasPermission('edit_users') && (
+                        {(user as any).is_account_locked && (currentUser?.is_superuser || hasPermission('edit_users')) && (
                           <button
                             onClick={() => handleUnlockAccount(user.id)}
                             className="text-yellow-600 hover:text-yellow-800 text-xs px-2 py-1 border border-yellow-300 rounded"
@@ -384,7 +375,7 @@ export function UserManagement() {
                             Unlock
                           </button>
                         )}
-                        {hasPermission('edit_users') && (
+                        {(currentUser?.is_superuser || hasPermission('edit_users')) && (
                           <button
                             onClick={() => setEditingUser(user)}
                             className="text-blue-600 hover:text-blue-800"
@@ -392,7 +383,7 @@ export function UserManagement() {
                             <Edit className="h-4 w-4" />
                           </button>
                         )}
-                        {hasPermission('delete_users') && (
+                        {(currentUser?.is_superuser || hasPermission('delete_users')) && (
                           <button
                             onClick={() => handleDeleteUser(user.id)}
                             className="text-red-600 hover:text-red-800"

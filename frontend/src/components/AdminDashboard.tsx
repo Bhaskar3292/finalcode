@@ -11,6 +11,8 @@ import {
 import { TabNavigation } from './TabNavigation';
 import { UserManagement } from './UserManagement';
 import { PermissionsManager } from './PermissionsManager';
+import { useAuth } from '../hooks/useAuth';
+import { Shield } from 'lucide-react';
 
 interface User {
   id: number;
@@ -37,12 +39,23 @@ interface Role {
  */
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('users');
+  const { user } = useAuth();
 
   const tabs = [
     { id: 'users', label: 'User Management' },
     { id: 'permissions', label: 'Permissions Management' },
   ];
 
+  // Ensure superusers can access admin dashboard
+  if (!user?.is_superuser && user?.role !== 'admin') {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <Shield className="h-12 w-12 text-red-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-red-900 mb-2">Access Denied</h3>
+        <p className="text-red-700">You don't have permission to access the admin dashboard.</p>
+      </div>
+    );
+  }
   const renderTabContent = () => {
     switch (activeTab) {
       case 'users':

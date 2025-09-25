@@ -121,28 +121,28 @@ class User(AbstractUser):
     
     @property
     def is_admin(self):
-        return self.role == 'admin'
+        return self.role == 'admin' or self.is_superuser
     
     @property
     def is_contributor(self):
-        return self.role == 'contributor'
+        return self.role == 'contributor' or self.is_superuser
     
     @property
     def is_viewer(self):
-        return self.role == 'viewer'
+        return self.role == 'viewer' and not self.is_superuser
     
     def can_create_users(self):
-        return self.is_admin
+        return self.is_admin or self.is_superuser
     
     def can_edit_facility(self, facility=None):
-        if self.is_admin:
+        if self.is_admin or self.is_superuser:
             return True
         if self.is_contributor:
             return True
         return False
     
     def can_delete_facility(self, facility=None):
-        return self.is_admin
+        return self.is_admin or self.is_superuser
     
     def can_view_facility(self, facility=None):
         return True  # All authenticated users can view

@@ -39,11 +39,16 @@ class RolePermissionListView(generics.ListAPIView):
     List permissions for a specific role
     """
     serializer_class = RolePermissionSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
+        # Check if user is admin or superuser
+        if not (self.request.user.role == 'admin' or self.request.user.is_superuser):
+            return RolePermission.objects.none()
+        
         role = self.kwargs.get('role')
         return RolePermission.objects.filter(role=role).order_by('permission__category__order', 'permission__name')
+    
 
 
 class RolePermissionUpdateView(generics.UpdateAPIView):
@@ -51,8 +56,18 @@ class RolePermissionUpdateView(generics.UpdateAPIView):
     Update a specific role permission
     """
     serializer_class = RolePermissionSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated]
     queryset = RolePermission.objects.all()
+    
+    def update(self, request, *args, **kwargs):
+        # Check if user is admin or superuser
+        if not (request.user.role == 'admin' or request.user.is_superuser):
+            return Response(
+                {'error': 'Only administrators can update permissions'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        return super().update(request, *args, **kwargs)
     
     def perform_update(self, serializer):
         instance = serializer.save()
@@ -74,11 +89,18 @@ class RolePermissionUpdateView(generics.UpdateAPIView):
 
 
 @api_view(['POST'])
-@permission_classes([IsAdminUser])
+@permission_classes([permissions.IsAuthenticated])
 def bulk_update_role_permissions(request):
     """
     Bulk update permissions for a role
     """
+    # Check if user is admin or superuser
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        return Response(
+            {'error': 'Only administrators can update permissions'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
     serializer = RolePermissionBulkUpdateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     
@@ -175,6 +197,10 @@ def check_user_permission(user, permission):
     Check if a user has a specific permission
     Priority: User-specific > Role-specific > Default
     """
+    # Superusers have all permissions
+    if user.is_superuser:
+        return True
+    
     # Check user-specific permission first
     try:
         user_perm = UserPermission.objects.get(user=user, permission=permission)
@@ -201,11 +227,18 @@ def check_user_permission(user, permission):
 
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([permissions.IsAuthenticated])
 def get_role_permissions_matrix(request):
     """
     Get permissions matrix for all roles
     """
+    # Check if user is admin or superuser
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        return Response(
+            {'error': 'Only administrators can view permissions matrix'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
     categories = PermissionCategory.objects.all().order_by('order')
     roles = ['admin', 'contributor', 'viewer']
     
