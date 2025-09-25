@@ -114,13 +114,17 @@ export function useAuth(): UseAuthReturn {
   const logout = async (): Promise<void> => {
     try {
       setIsLoading(true);
+      console.log('Starting logout process...');
       await apiService.logout();
+      console.log('Logout API call completed');
     } catch (error) {
       console.error('Logout error:', error);
+      // Don't prevent logout on error - always clear local state
     } finally {
       setUser(null);
       setError(null);
       setIsLoading(false);
+      console.log('Logout process completed - user state cleared');
     }
   };
 

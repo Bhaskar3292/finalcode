@@ -146,13 +146,21 @@ class ApiService {
     try {
       const refreshToken = tokenManager.getRefreshToken();
       
-      if (refreshToken) {
-        await api.post('/api/auth/logout/', { refresh_token: refreshToken });
-      }
+      // Always call logout endpoint, even without refresh token
+      const logoutData = refreshToken ? { refresh_token: refreshToken } : {};
+      
+      console.log('Logout request data:', logoutData);
+      
+      const response = await api.post('/api/auth/logout/', logoutData);
+      console.log('Logout response:', response.data);
+      
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Logout API error:', error);
+      // Don't throw error - logout should always succeed on frontend
     } finally {
+      // Always clear tokens regardless of API response
       tokenManager.clearTokens();
+      console.log('Tokens cleared from localStorage');
     }
   }
 

@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'axes',
     'csp',
@@ -269,6 +270,11 @@ LOGGING = {
         },
     },
     'loggers': {
+        'accounts.views': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
         'security': {
             'handlers': ['file', 'console'],
             'level': 'INFO',

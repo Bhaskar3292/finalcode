@@ -109,7 +109,8 @@ api.interceptors.response.use(
       console.error(`❌ API Error: ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`, {
         status: error.response?.status,
         message: error.message,
-        data: error.response?.data
+        data: error.response?.data,
+        config: originalRequest
       });
     }
 

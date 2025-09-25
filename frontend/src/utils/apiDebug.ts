@@ -67,14 +67,24 @@ export class ApiDebugger {
     
     try {
       let response;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      
+      // Add auth header if available
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       switch (method) {
         case 'GET':
-          response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${endpoint}`);
+          response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${endpoint}`, {
+            headers
+          });
           break;
         case 'POST':
           response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${endpoint}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(data || {})
           });
           break;
@@ -89,6 +99,25 @@ export class ApiDebugger {
     } catch (error) {
       console.error(`   Error:`, error);
     }
+  }
+
+  /**
+   * Test logout functionality specifically
+   */
+  static async testLogout(): Promise<void> {
+    console.log('🧪 Testing Logout Functionality...\n');
+
+    const refreshToken = localStorage.getItem('refresh_token');
+    console.log(`Refresh token available: ${!!refreshToken}`);
+    
+    if (refreshToken) {
+      console.log(`Refresh token: ${refreshToken.substring(0, 20)}...`);
+    }
+
+    // Test logout with current tokens
+    await this.testEndpoint('/api/auth/logout/', 'POST', {
+      refresh_token: refreshToken
+    });
   }
 
   /**

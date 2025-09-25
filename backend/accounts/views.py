@@ -6,9 +6,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from django.conf import settings
+import logging
 import qrcode
 import io
 import base64
@@ -21,6 +23,7 @@ from .serializers import (
 )
 from .permissions import IsAdminUser
 
+logger = logging.getLogger(__name__)
 
 class LoginRateThrottle(UserRateThrottle):
     scope = 'login'
@@ -106,24 +109,57 @@ class LogoutView(generics.GenericAPIView):
     """
     User logout endpoint
     """
+    permission_classes = [permissions.AllowAny]  # Allow both authenticated and unauthenticated users
+    
     def post(self, request):
+        logger.info(f"Logout request received from user: {getattr(request.user, 'username', 'Anonymous')}")
+        logger.info(f"Request data: {request.data}")
+        
         try:
-            # Log logout
-            log_security_event(
-                user=request.user,
-                action='logout',
-                description=f'User logged out',
-                ip_address=get_client_ip(request),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')
-            )
+            # Get refresh token from request
+            refresh_token = request.data.get('refresh_token') or request.data.get('refresh')
+            logger.info(f"Refresh token received: {bool(refresh_token)}")
             
-            refresh_token = request.data.get('refresh_token')
             if refresh_token:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-            return Response({'message': 'Logout successful'})
-        except Exception:
-            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+                try:
+                    # Validate and blacklist the refresh token
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
+                    logger.info("Refresh token successfully blacklisted")
+                except TokenError as e:
+                    logger.warning(f"Token error during logout: {e}")
+                    # Don't fail logout if token is already invalid/expired
+                except Exception as e:
+                    logger.error(f"Unexpected error blacklisting token: {e}")
+                    # Don't fail logout for token issues
+            else:
+                logger.warning("No refresh token provided in logout request")
+            
+            # Log logout event (only if user is authenticated)
+            if request.user and request.user.is_authenticated:
+                log_security_event(
+                    user=request.user,
+                    action='logout',
+                    description=f'User logged out',
+                    ip_address=get_client_ip(request),
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')
+                )
+                logger.info(f"Logout successful for user: {request.user.username}")
+            else:
+                logger.info("Logout request from unauthenticated user")
+            
+            return Response({
+                'message': 'Logout successful',
+                'status': 'success'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Unexpected error during logout: {e}", exc_info=True)
+            # Always return success for logout to prevent client-side issues
+            return Response({
+                'message': 'Logout completed',
+                'status': 'success'
+            }, status=status.HTTP_200_OK)
 
 
 class PasswordChangeView(generics.GenericAPIView):
