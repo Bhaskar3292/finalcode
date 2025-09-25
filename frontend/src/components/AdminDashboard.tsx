@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
 import { 
   Users, 
-  Shield, 
   Activity, 
   Database, 
   Plus,
   UserPlus,
-  Search
+  Search,
+  Shield
 } from 'lucide-react';
 import { TabNavigation } from './TabNavigation';
 import { UserManagement } from './UserManagement';
 import { PermissionsManager } from './PermissionsManager';
 import { useAuth } from '../hooks/useAuth';
-import { Shield } from 'lucide-react';
 
 interface User {
   id: number;
