@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import { 
   User, 
   LoginRequest, 
+  RegisterRequest,
   PasswordResetRequest,
   PasswordResetConfirm,
   EmailVerification
@@ -19,6 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   login: (credentials: LoginRequest) => Promise<boolean>;
+  register: (data: RegisterRequest) => Promise<boolean>;
   logout: () => Promise<void>;
   requestPasswordReset: (data: PasswordResetRequest) => Promise<boolean>;
   confirmPasswordReset: (data: PasswordResetConfirm) => Promise<boolean>;

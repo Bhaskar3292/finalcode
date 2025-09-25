@@ -10,16 +10,16 @@ export interface User {
   first_name: string;
   last_name: string;
   role: 'admin' | 'contributor' | 'viewer';
-  organization: string;
-  phone: string;
+  organization?: string;
+  phone?: string;
   is_active: boolean;
   created_at: string;
+  two_factor_enabled?: boolean;
+  is_account_locked?: boolean;
+  last_login?: string;
   
   // Computed properties
-  get name(): string;
-  get is_admin(): boolean;
-  get is_contributor(): boolean;
-  get is_viewer(): boolean;
+  name?: string;
 }
 
 export interface AuthTokens {
@@ -33,13 +33,27 @@ export interface LoginRequest {
   totp_token?: string;
 }
 
+export interface RegisterRequest {
+  email: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  password_confirm: string;
+  organization?: string;
+  phone?: string;
+}
+
+export interface RegisterResponse {
+  message: string;
+  user: User;
+}
 
 export interface LoginResponse {
   message: string;
   user: User;
   tokens: AuthTokens;
 }
-
 
 export interface ApiError {
   error?: string;

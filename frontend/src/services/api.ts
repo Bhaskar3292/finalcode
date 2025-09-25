@@ -1,8 +1,9 @@
 /**
  * API service for handling HTTP requests to Django backend
- * Includes authentication, error handling, and token management
+ * Uses centralized Axios configuration with authentication and error handling
  */
 
+import api from '../api/axios';
 import { 
   LoginRequest, 
   LoginResponse, 
@@ -13,40 +14,7 @@ import {
   ApiError
 } from '../types/auth';
 
-const API_BASE_URL = 'http://localhost:8000/';
-
 class ApiService {
-  private baseURL: string;
-
-  constructor() {
-    this.baseURL = API_BASE_URL;
-  }
-
-  /**
-   * Get authentication headers with JWT token
-   */
-  private getAuthHeaders(): HeadersInit {
-    const token = this.getAccessToken();
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-  }
-
-  /**
-   * Get access token from localStorage
-   */
-  private getAccessToken(): string | null {
-    return localStorage.getItem('access_token');
-  }
-
-  /**
-   * Get refresh token from localStorage
-   */
-  private getRefreshToken(): string | null {
-    return localStorage.getItem('refresh_token');
-  }
-
   /**
    * Store tokens in localStorage
    */
@@ -65,94 +33,14 @@ class ApiService {
   }
 
   /**
-   * Refresh access token using refresh token
-   */
-  private async refreshAccessToken(): Promise<boolean> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) return false;
-
-    try {
-      const response = await fetch(`${this.baseURL}/auth/token/refresh/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('access_token', data.access);
-        return true;
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-    }
-
-    return false;
-  }
-
-  /**
-   * Make authenticated API request with automatic token refresh
-   */
-  private async makeRequest<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    let response = await fetch(url, {
-      ...options,
-      headers: {
-        ...this.getAuthHeaders(),
-        ...options.headers,
-      },
-    });
-
-    // If unauthorized, try to refresh token and retry
-    if (response.status === 401 && this.getRefreshToken()) {
-      const refreshed = await this.refreshAccessToken();
-      if (refreshed) {
-        response = await fetch(url, {
-          ...options,
-          headers: {
-            ...this.getAuthHeaders(),
-            ...options.headers,
-          },
-        });
-      }
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || errorData.message || 'Request failed');
-    }
-
-    return response.json();
-  }
-
-  /**
    * User registration
    */
-  async register(data: RegisterRequest): Promise<RegisterResponse> {
+  async register(data: any): Promise<any> {
     try {
-      const response = await fetch(`${this.baseURL}/auth/register/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(responseData.error || 'Registration failed');
-      }
-
-      return responseData;
-    } catch (error) {
-      throw error;
+      const response = await api.post('/auth/register/', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Registration failed');
     }
   }
 
@@ -161,34 +49,23 @@ class ApiService {
    */
   async login(data: LoginRequest): Promise<LoginResponse> {
     try {
-      const response = await fetch(`${this.baseURL}/auth/login/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          totp_token: data.totp_token
-        }),
+      const response = await api.post('/auth/login/', {
+        email: data.email,
+        password: data.password,
+        totp_token: data.totp_token
       });
 
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(responseData.error || 'Login failed');
-      }
+      const responseData = response.data;
 
       // Store tokens and user data
       this.storeTokens(responseData.tokens.access, responseData.tokens.refresh);
       localStorage.setItem('user', JSON.stringify(responseData.user));
 
       return responseData;
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Login failed');
     }
   }
-
 
   /**
    * Change password
@@ -198,10 +75,12 @@ class ApiService {
     new_password: string;
     confirm_password: string;
   }): Promise<{ message: string }> {
-    return this.makeRequest<{ message: string }>('/auth/password/change/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await api.post('/auth/password/change/', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Password change failed');
+    }
   }
 
   /**
@@ -212,39 +91,48 @@ class ApiService {
     qr_code: string;
     backup_codes: string[];
   }> {
-    return this.makeRequest<{
-      secret: string;
-      qr_code: string;
-      backup_codes: string[];
-    }>('/auth/2fa/setup/');
+    try {
+      const response = await api.get('/auth/2fa/setup/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || '2FA setup failed');
+    }
   }
 
   /**
    * Enable Two-Factor Authentication
    */
   async enable2FA(totp_token: string): Promise<{ message: string }> {
-    return this.makeRequest<{ message: string }>('/auth/2fa/setup/', {
-      method: 'POST',
-      body: JSON.stringify({ totp_token }),
-    });
+    try {
+      const response = await api.post('/auth/2fa/setup/', { totp_token });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || '2FA enable failed');
+    }
   }
 
   /**
    * Disable Two-Factor Authentication
    */
   async disable2FA(): Promise<{ message: string }> {
-    return this.makeRequest<{ message: string }>('/auth/2fa/disable/', {
-      method: 'POST',
-    });
+    try {
+      const response = await api.post('/auth/2fa/disable/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || '2FA disable failed');
+    }
   }
 
   /**
    * Unlock user account (admin only)
    */
   async unlockUserAccount(userId: number): Promise<{ message: string }> {
-    return this.makeRequest<{ message: string }>(`/auth/users/${userId}/unlock/`, {
-      method: 'POST',
-    });
+    try {
+      const response = await api.post(`/auth/users/${userId}/unlock/`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Account unlock failed');
+    }
   }
 
   /**
@@ -252,13 +140,10 @@ class ApiService {
    */
   async logout(): Promise<void> {
     try {
-      const refreshToken = this.getRefreshToken();
+      const refreshToken = localStorage.getItem('refresh_token');
       
       if (refreshToken) {
-        await this.makeRequest('/auth/logout/', {
-          method: 'POST',
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
+        await api.post('/auth/logout/', { refresh_token: refreshToken });
       }
     } catch (error) {
       console.error('Logout error:', error);
@@ -271,77 +156,55 @@ class ApiService {
    * Get current user profile
    */
   async getUserProfile(): Promise<User> {
-    return this.makeRequest<User>('/auth/profile/');
+    try {
+      const response = await api.get('/auth/profile/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get user profile');
+    }
   }
 
   /**
    * Request password reset
    */
   async requestPasswordReset(data: PasswordResetRequest): Promise<{ message: string }> {
-    const response = await fetch(`${this.baseURL}/auth/password-reset/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      throw new Error(responseData.error || 'Password reset request failed');
+    try {
+      const response = await api.post('/auth/password-reset/', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Password reset request failed');
     }
-
-    return responseData;
   }
 
   /**
    * Confirm password reset
    */
   async confirmPasswordReset(data: PasswordResetConfirm): Promise<{ message: string }> {
-    const response = await fetch(`${this.baseURL}/auth/password-reset/confirm/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      throw new Error(responseData.error || 'Password reset failed');
+    try {
+      const response = await api.post('/auth/password-reset/confirm/', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Password reset failed');
     }
-
-    return responseData;
   }
 
   /**
    * Verify email address
    */
   async verifyEmail(data: EmailVerification): Promise<{ message: string }> {
-    const response = await fetch(`${this.baseURL}/auth/verify-email/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    const responseData = await response.json();
-
-    if (!response.ok) {
-      throw new Error(responseData.error || 'Email verification failed');
+    try {
+      const response = await api.post('/auth/verify-email/', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Email verification failed');
     }
-
-    return responseData;
   }
 
   /**
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
-    const token = this.getAccessToken();
+    const token = localStorage.getItem('access_token');
     const user = localStorage.getItem('user');
     return !!(token && user);
   }
@@ -360,129 +223,318 @@ class ApiService {
    * Get all locations
    */
   async getLocations(): Promise<any[]> {
-    return this.makeRequest<any[]>('/facilities/locations/');
+    try {
+      const response = await api.get('/facilities/locations/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get locations');
+    }
   }
 
   /**
    * Create a new location
    */
   async createLocation(data: any): Promise<any> {
-    return this.makeRequest<any>('/facilities/locations/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await api.post('/facilities/locations/', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to create location');
+    }
   }
 
   /**
    * Get location details
    */
   async getLocation(id: number): Promise<any> {
-    return this.makeRequest<any>(`/facilities/locations/${id}/`);
+    try {
+      const response = await api.get(`/facilities/locations/${id}/`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get location');
+    }
   }
 
   /**
    * Update location
    */
   async updateLocation(id: number, data: any): Promise<any> {
-    return this.makeRequest<any>(`/facilities/locations/${id}/`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await api.patch(`/facilities/locations/${id}/`, data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to update location');
+    }
   }
 
   /**
    * Delete location
    */
   async deleteLocation(id: number): Promise<void> {
-    return this.makeRequest<void>(`/facilities/locations/${id}/`, {
-      method: 'DELETE',
-    });
+    try {
+      await api.delete(`/facilities/locations/${id}/`);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to delete location');
+    }
   }
 
   /**
    * Get location dashboard
    */
   async getLocationDashboard(locationId: number): Promise<any> {
-    return this.makeRequest<any>(`/facilities/locations/${locationId}/dashboard/`);
+    try {
+      const response = await api.get(`/facilities/locations/${locationId}/dashboard/`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get dashboard');
+    }
   }
 
   /**
    * Update dashboard section data
    */
   async updateDashboardSection(sectionId: number, data: any): Promise<any> {
-    return this.makeRequest<any>(`/facilities/dashboard-section-data/${sectionId}/`, {
-      method: 'PATCH',
-      body: JSON.stringify({ data }),
-    });
+    try {
+      const response = await api.patch(`/facilities/dashboard-section-data/${sectionId}/`, { data });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to update dashboard section');
+    }
   }
 
   /**
    * Get user permissions
    */
   async getUserPermissions(): Promise<any> {
-    return this.makeRequest<any>('/permissions/user/permissions/');
+    try {
+      const response = await api.get('/permissions/user/permissions/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get permissions');
+    }
   }
 
   /**
    * Check specific permissions
    */
   async checkPermissions(permissionCodes: string[]): Promise<any> {
-    const params = new URLSearchParams();
-    permissionCodes.forEach(code => params.append('permission_codes', code));
-    return this.makeRequest<any>(`/permissions/user/check/?${params.toString()}`);
+    try {
+      const params = new URLSearchParams();
+      permissionCodes.forEach(code => params.append('permission_codes', code));
+      const response = await api.get(`/permissions/user/check/?${params.toString()}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to check permissions');
+    }
   }
 
   /**
    * Get permissions matrix (admin only)
    */
   async getPermissionsMatrix(): Promise<any> {
-    return this.makeRequest<any>('/permissions/roles/permissions/matrix/');
+    try {
+      const response = await api.get('/permissions/roles/permissions/matrix/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get permissions matrix');
+    }
   }
 
   /**
    * Update role permissions (admin only)
    */
   async updateRolePermissions(role: string, permissions: any[]): Promise<any> {
-    return this.makeRequest<any>('/permissions/roles/permissions/bulk-update/', {
-      method: 'POST',
-      body: JSON.stringify({ role, permissions }),
-    });
+    try {
+      const response = await api.post('/permissions/roles/permissions/bulk-update/', { 
+        role, 
+        permissions 
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to update role permissions');
+    }
   }
 
   /**
    * Get all users (admin only)
    */
   async getUsers(): Promise<any[]> {
-    return this.makeRequest<any[]>('/auth/users/');
+    try {
+      const response = await api.get('/auth/users/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get users');
+    }
   }
 
   /**
    * Create user (admin only)
    */
   async createUser(data: any): Promise<any> {
-    return this.makeRequest<any>('/auth/users/create/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await api.post('/auth/users/create/', data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to create user');
+    }
   }
 
   /**
    * Update user (admin only)
    */
   async updateUser(id: number, data: any): Promise<any> {
-    return this.makeRequest<any>(`/auth/users/${id}/`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await api.patch(`/auth/users/${id}/`, data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to update user');
+    }
   }
 
   /**
    * Delete user (admin only)
    */
   async deleteUser(id: number): Promise<void> {
-    return this.makeRequest<void>(`/auth/users/${id}/`, {
-      method: 'DELETE',
-    });
+    try {
+      await api.delete(`/auth/users/${id}/`);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to delete user');
+    }
+  }
+
+  /**
+   * Get tanks for a location
+   */
+  async getTanks(locationId?: number): Promise<any[]> {
+    try {
+      const endpoint = locationId 
+        ? `/facilities/locations/${locationId}/tanks/`
+        : '/facilities/tanks/';
+      const response = await api.get(endpoint);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get tanks');
+    }
+  }
+
+  /**
+   * Create tank
+   */
+  async createTank(data: any, locationId?: number): Promise<any> {
+    try {
+      const endpoint = locationId 
+        ? `/facilities/locations/${locationId}/tanks/`
+        : '/facilities/tanks/';
+      const response = await api.post(endpoint, data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to create tank');
+    }
+  }
+
+  /**
+   * Update tank
+   */
+  async updateTank(id: number, data: any): Promise<any> {
+    try {
+      const response = await api.patch(`/facilities/tanks/${id}/`, data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to update tank');
+    }
+  }
+
+  /**
+   * Delete tank
+   */
+  async deleteTank(id: number): Promise<void> {
+    try {
+      await api.delete(`/facilities/tanks/${id}/`);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to delete tank');
+    }
+  }
+
+  /**
+   * Get permits for a location
+   */
+  async getPermits(locationId?: number): Promise<any[]> {
+    try {
+      const endpoint = locationId 
+        ? `/facilities/locations/${locationId}/permits/`
+        : '/facilities/permits/';
+      const response = await api.get(endpoint);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get permits');
+    }
+  }
+
+  /**
+   * Create permit
+   */
+  async createPermit(data: any, locationId?: number): Promise<any> {
+    try {
+      const endpoint = locationId 
+        ? `/facilities/locations/${locationId}/permits/`
+        : '/facilities/permits/';
+      const response = await api.post(endpoint, data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to create permit');
+    }
+  }
+
+  /**
+   * Update permit
+   */
+  async updatePermit(id: number, data: any): Promise<any> {
+    try {
+      const response = await api.patch(`/facilities/permits/${id}/`, data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to update permit');
+    }
+  }
+
+  /**
+   * Delete permit
+   */
+  async deletePermit(id: number): Promise<void> {
+    try {
+      await api.delete(`/facilities/permits/${id}/`);
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to delete permit');
+    }
+  }
+
+  /**
+   * Get dashboard statistics
+   */
+  async getDashboardStats(): Promise<any> {
+    try {
+      const response = await api.get('/facilities/stats/');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Failed to get dashboard stats');
+    }
+  }
+
+  /**
+   * Check if user is authenticated
+   */
+  isAuthenticated(): boolean {
+    const token = localStorage.getItem('access_token');
+    const user = localStorage.getItem('user');
+    return !!(token && user);
+  }
+
+  /**
+   * Get stored user data
+   */
+  getStoredUser(): User | null {
+    const userData = localStorage.getItem('user');
+    return userData ? JSON.parse(userData) : null;
   }
 }
 

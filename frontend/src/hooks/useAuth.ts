@@ -8,6 +8,8 @@ import { apiService } from '../services/api';
 import { 
   User, 
   LoginRequest, 
+  RegisterRequest,
+  RegisterResponse,
   PasswordResetRequest,
   PasswordResetConfirm,
   EmailVerification
@@ -19,6 +21,7 @@ interface UseAuthReturn {
   isLoading: boolean;
   error: string | null;
   login: (credentials: LoginRequest) => Promise<boolean>;
+  register: (data: RegisterRequest) => Promise<boolean>;
   logout: () => Promise<void>;
   requestPasswordReset: (data: PasswordResetRequest) => Promise<boolean>;
   confirmPasswordReset: (data: PasswordResetConfirm) => Promise<boolean>;
@@ -76,6 +79,28 @@ export function useAuth(): UseAuthReturn {
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      setError(errorMessage);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * User registration
+   */
+  const register = async (data: RegisterRequest): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await apiService.register(data);
+      // Don't automatically log in after registration
+      // User may need to verify email first
+      
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Registration failed';
       setError(errorMessage);
       return false;
     } finally {
@@ -205,6 +230,7 @@ export function useAuth(): UseAuthReturn {
     isLoading,
     error,
     login,
+    register,
     logout,
     requestPasswordReset,
     confirmPasswordReset,
