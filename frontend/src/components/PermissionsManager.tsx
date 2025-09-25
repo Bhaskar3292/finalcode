@@ -39,10 +39,10 @@ export function PermissionsManager() {
   const [originalMatrix, setOriginalMatrix] = useState<PermissionsMatrix>({});
   
   const { hasPermission, user } = useAuth();
-  const { hasPermission, user: currentUser } = useAuth();
+  const { hasPermission: hasPermissionCheck, user: currentUser } = useAuth();
 
   useEffect(() => {
-    if (currentUser?.is_superuser || hasPermission('manage_users')) {
+    if (currentUser?.is_superuser || hasPermissionCheck('manage_users')) {
       loadPermissionsMatrix();
     }
   }, [currentUser]);
@@ -127,14 +127,15 @@ export function PermissionsManager() {
   };
 
   if (!user?.is_superuser && !hasPermission('manage_users')) {
-  if (!currentUser?.is_superuser && !hasPermission('manage_users')) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-        <Shield className="h-12 w-12 text-red-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-red-900 mb-2">Access Denied</h3>
-        <p className="text-red-700">You don't have permission to manage permissions.</p>
-      </div>
-    );
+    if (!currentUser?.is_superuser && !hasPermissionCheck('manage_users')) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <Shield className="h-12 w-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-red-900 mb-2">Access Denied</h3>
+          <p className="text-red-700">You don't have permission to manage permissions.</p>
+        </div>
+      );
+    }
   }
 
   if (loading) {
