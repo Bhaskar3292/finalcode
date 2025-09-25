@@ -110,7 +110,6 @@ export function LocationManager() {
     location.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!user?.is_superuser && !hasPermission('view_locations')) {
   if (!currentUser?.is_superuser && !hasPermission('view_locations')) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
@@ -306,7 +305,6 @@ export function LocationManager() {
           <p className="text-gray-500 mb-4">
             {searchTerm ? `No locations match "${searchTerm}"` : 'Get started by creating your first location.'}
           </p>
-          {(user?.is_superuser || hasPermission('create_locations')) && !searchTerm && (
           {(currentUser?.is_superuser || hasPermission('create_locations')) && !searchTerm && (
             <button
               onClick={() => setShowCreateModal(true)}
