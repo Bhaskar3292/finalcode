@@ -185,7 +185,6 @@ export function UserManagement() {
           <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
         </div>
         
-        {(user?.is_superuser || hasPermission('create_users')) && (
         {(currentUser?.is_superuser || hasPermission('create_users')) && (
           <button
             onClick={() => setShowCreateModal(true)}
