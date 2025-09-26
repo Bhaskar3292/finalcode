@@ -395,17 +395,28 @@ class ApiService {
    */
   async createUser(data: any): Promise<any> {
     try {
-      // Ensure we only send required fields
+      // Validate required fields before sending
+      if (!data.username || !data.password || !data.role) {
+        throw new Error('Username, password, and role are required');
+      }
+
+      // Ensure we only send required fields with proper validation
       const userData = {
-        username: data.username,
+        username: data.username.trim(),
         password: data.password,
         role: data.role,
-        first_name: data.first_name || '',
-        last_name: data.last_name || ''
+        first_name: data.first_name?.trim() || '',
+        last_name: data.last_name?.trim() || ''
       };
       
       console.log('Creating user with data:', userData);
-      console.log('Current auth token:', tokenManager.getAccessToken() ? 'Present' : 'Missing');
+      
+      // Verify authentication token exists
+      const token = tokenManager.getAccessToken();
+      if (!token) {
+        throw new Error('Authentication token missing. Please log in again.');
+      }
+      console.log('Auth token present:', token.substring(0, 20) + '...');
       
       const response = await api.post('/api/auth/users/create/', userData);
       console.log('User creation response:', response.data);
@@ -414,16 +425,19 @@ class ApiService {
       console.error('User creation error details:', {
         status: error.response?.status,
         data: error.response?.data,
-        message: error.message
+        message: error.message,
+        headers: error.config?.headers
       });
       
       // Handle specific error cases
       if (error.response?.status === 403) {
         throw new Error('Access denied. Only administrators can create users.');
       } else if (error.response?.status === 401) {
-        throw new Error('Authentication required. Please log in again.');
+        throw new Error('Authentication failed. Please log in again.');
       } else if (error.response?.data?.error) {
         throw new Error(error.response.data.error);
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
       } else if (error.response?.data) {
         // Handle field-specific errors
         const errorData = error.response.data;

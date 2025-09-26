@@ -277,6 +277,7 @@ class CreateUserView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         logger.info(f"User creation request from: {request.user.username} (role: {request.user.role})")
         logger.info(f"Request data: {request.data}")
+        logger.info(f"Request headers: {dict(request.headers)}")
         
         serializer = self.get_serializer(data=request.data)
         
@@ -285,27 +286,39 @@ class CreateUserView(generics.CreateAPIView):
             user = serializer.save()
             
             logger.info(f"User created successfully: {user.username}")
+            
+            # Return the created user data
+            response_data = {
+                'message': 'User created successfully',
+                'user': UserListSerializer(user).data
+            }
+            
+            # Log user creation
+            log_security_event(
+                user=request.user,
+                action='user_created',
+                description=f'Created user: {user.username} with role: {user.role}',
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                metadata={'created_user_id': user.id, 'created_user_role': user.role}
+            )
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
+            
         except Exception as e:
             logger.error(f"User creation failed: {e}")
+            
+            # Handle validation errors specifically
+            if hasattr(e, 'detail'):
+                return Response(
+                    {'error': str(e.detail)}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             return Response(
                 {'error': str(e)}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Log user creation
-        log_security_event(
-            user=request.user,
-            action='user_created',
-            description=f'Created user: {user.username} with role: {user.role}',
-            ip_address=get_client_ip(request),
-            user_agent=request.META.get('HTTP_USER_AGENT', ''),
-            metadata={'created_user_id': user.id, 'created_user_role': user.role}
-        )
-        
-        return Response({
-            'message': 'User created successfully',
-            'user': UserListSerializer(user).data
-        }, status=status.HTTP_201_CREATED)
     
 
 

@@ -110,7 +110,8 @@ api.interceptors.response.use(
         status: error.response?.status,
         message: error.message,
         data: error.response?.data,
-        config: originalRequest
+        config: originalRequest,
+        headers: originalRequest?.headers
       });
     }
 
@@ -164,6 +165,16 @@ api.interceptors.response.use(
         
         return Promise.reject(refreshError);
       }
+    }
+
+    // Handle 403 Forbidden - permission denied
+    if (error.response?.status === 403) {
+      const enhancedError = new Error(
+        error.response?.data?.error || 
+        error.response?.data?.detail || 
+        'Access denied. You do not have permission to perform this action.'
+      );
+      return Promise.reject(enhancedError);
     }
 
     // Handle network errors

@@ -184,9 +184,10 @@ class CreateUserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['username', 'password', 'role', 'first_name', 'last_name', 'email']
+        fields = ['username', 'password', 'role', 'first_name', 'last_name']
         extra_kwargs = {
-            'email': {'required': False, 'allow_blank': True},
+            'first_name': {'required': False, 'allow_blank': True},
+            'last_name': {'required': False, 'allow_blank': True},
         }
     
     def validate_password(self, value):
