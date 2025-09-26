@@ -1,5 +1,5 @@
 import React from 'react';
-import { Hop as Home, Building2, Zap, Shield, FileText, Settings, Users, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
+import { Hop as Home, Building2, Zap, Shield, FileText, Settings, Users, MapPin, Menu } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 
 interface SidebarProps {
@@ -14,6 +14,7 @@ export function Sidebar({ collapsed, activeView, onViewChange, onToggleSidebar }
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'locations', label: 'Locations', icon: MapPin },
     { id: 'facilities', label: 'Facilities', icon: Building2 },
     { id: 'tanks', label: 'Tank Management', icon: Zap },
     { id: 'releases', label: 'Release Detection', icon: Shield },

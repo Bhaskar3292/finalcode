@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FacilityDashboard } from './FacilityDashboard';
+import { LocationManagement } from './LocationManagement';
 import { LocationManager } from './LocationManager';
 import { TankManagement } from './TankManagement';
 import { ReleaseDetection } from './ReleaseDetection';
@@ -19,6 +20,8 @@ export function MainContent({ activeView, selectedFacility, showAddLocationModal
     switch (activeView) {
       case 'dashboard':
         return <FacilityDashboard selectedFacility={selectedFacility} />;
+      case 'locations':
+        return <LocationManagement />;
       case 'facilities':
         return <LocationManager showAddLocationModal={showAddLocationModal} onCloseAddLocationModal={onCloseAddLocationModal} />;
       case 'tanks':

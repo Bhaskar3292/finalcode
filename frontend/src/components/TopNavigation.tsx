@@ -162,19 +162,6 @@ export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange
 
         {/* Right side - User menu and notifications */}
         <div className="flex items-center space-x-4 min-w-0 flex-1 justify-end">
-          {/* Add Location Button */}
-          {(user?.is_superuser || hasPermission('create_locations')) && (
-            <button
-              onClick={onShowAddLocation}
-              className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-              title="Add New Location"
-            >
-              <MapPin className="h-4 w-4" />
-              <Plus className="h-3 w-3 -ml-1" />
-              <span className="hidden sm:inline font-medium">Add Location</span>
-            </button>
-          )}
-          
           <div className="text-sm text-gray-600">
             <span className="font-medium truncate">{user?.organization}</span>
           </div>
