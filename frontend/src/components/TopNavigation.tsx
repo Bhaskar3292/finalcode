@@ -9,7 +9,8 @@ import {
   User, 
   Settings,
   Building2,
-  Plus
+  Plus,
+  MapPin
 } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 
@@ -17,7 +18,7 @@ interface TopNavigationProps {
   selectedFacility: any;
   onFacilitySelect: (facility: any) => void;
   onViewChange: (view: string) => void;
-  onShowAddLocation?: () => void;
+  onShowAddLocation: () => void;
 }
 
 export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange, onShowAddLocation }: TopNavigationProps) {
@@ -162,14 +163,15 @@ export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange
         {/* Right side - User menu and notifications */}
         <div className="flex items-center space-x-4 min-w-0 flex-1 justify-end">
           {/* Add Location Button */}
-          {(user?.is_superuser || hasPermission('create_locations')) && onShowAddLocation && (
+          {(user?.is_superuser || hasPermission('create_locations')) && (
             <button
               onClick={onShowAddLocation}
-              className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
               title="Add New Location"
             >
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Add Location</span>
+              <MapPin className="h-4 w-4" />
+              <Plus className="h-3 w-3 -ml-1" />
+              <span className="hidden sm:inline font-medium">Add Location</span>
             </button>
           )}
           

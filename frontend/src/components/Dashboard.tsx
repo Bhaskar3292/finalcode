@@ -14,10 +14,7 @@ export function Dashboard() {
 
   const handleFacilitySelect = (facility: any) => {
     setSelectedFacility(facility);
-    // Optionally switch to facilities view when a facility is selected
-    if (activeView === 'dashboard') {
-      setActiveView('facilities');
-    }
+    // Keep current view but update data for selected facility
   };
 
   return (

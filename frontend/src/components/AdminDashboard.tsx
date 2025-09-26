@@ -25,7 +25,6 @@ export function AdminDashboard() {
 
   const tabs = [
     { id: 'users', label: 'User Management' },
-    { id: 'permissions', label: 'Permissions Management' },
     { id: 'dashboard-access', label: 'Dashboard Access Control' },
   ];
 
@@ -45,11 +44,6 @@ export function AdminDashboard() {
       case 'users':
         return (
           <UserManagement />
-        );
-
-      case 'permissions':
-        return (
-          <PermissionsManager />
         );
 
       case 'dashboard-access':

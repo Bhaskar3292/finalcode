@@ -136,9 +136,6 @@ export function TankManagement({ selectedFacility }: TankManagementProps) {
   ];
 
   // Filter tanks by selected facility
-  const filteredTanks = selectedFacility 
-    ? tanks.filter(tank => tank.facility === selectedFacility.name)
-    : tanks;
 
   const handleAddTank = () => {
     const newId = Math.max(...tanks.map(t => t.id)) + 1;

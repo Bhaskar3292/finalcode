@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, CreditCard as Edit, Trash2, Save, X, MapPin, Search, Phone, Mail, Calendar, User } from 'lucide-react';
+import { Building2, MapPin, Phone, Mail, Calendar, User, X, Save } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuthContext } from '../contexts/AuthContext';
 import { LocationDashboard } from './LocationDashboard';
@@ -17,6 +17,7 @@ interface Location {
 }
 
 interface LocationManagerProps {
+  selectedFacility?: any;
   showAddLocationModal?: boolean;
   onCloseAddLocationModal?: () => void;
 }
@@ -35,13 +36,10 @@ interface NewLocationData {
   facility_type: string;
 }
 
-export function LocationManager({ showAddLocationModal, onCloseAddLocationModal }: LocationManagerProps) {
+export function LocationManager({ selectedFacility, showAddLocationModal, onCloseAddLocationModal }: LocationManagerProps) {
   const [locations, setLocations] = useState<Location[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [view, setView] = useState<'list' | 'dashboard'>('list');
   const [formLoading, setFormLoading] = useState(false);
   
@@ -115,10 +113,17 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
       
       const createdLocation = await apiService.createLocation(locationData);
       setLocations(prev => Array.isArray(prev) ? [createdLocation, ...prev] : [createdLocation]);
+      
       if (onCloseAddLocationModal) {
         onCloseAddLocationModal();
       }
       resetForm();
+      
+      // Refresh dashboard
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+      
     } catch (error) {
       console.error('Create location error:', error);
       setError('Failed to create location');
@@ -144,42 +149,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
     setError(null);
   };
 
-  const handleUpdateLocation = async (location: Location) => {
-    try {
-      const updatedLocation = await apiService.updateLocation(location.id, {
-        name: location.name,
-        address: location.address,
-        description: location.description
-      });
-      
-      setLocations(prev => Array.isArray(prev) ? prev.map(l => l.id === location.id ? updatedLocation : l) : []);
-      setEditingLocation(null);
-      setError(null);
-    } catch (error) {
-      console.error('Update location error:', error);
-      setError('Failed to update location');
-    }
-  };
-
-  const handleDeleteLocation = async (locationId: number) => {
-    if (window.confirm('Are you sure you want to delete this location?')) {
-      try {
-        await apiService.deleteLocation(locationId);
-        setLocations(prev => Array.isArray(prev) ? prev.filter(l => l.id !== locationId) : []);
-        if (selectedLocation?.id === locationId) {
-          setSelectedLocation(null);
-          setView('list');
-        }
-        setError(null);
-      } catch (error) {
-        console.error('Delete location error:', error);
-        setError('Failed to delete location');
-      }
-    }
-  };
-
   const handleViewDashboard = (location: Location) => {
-    setSelectedLocation(location);
     setView('dashboard');
   };
 
@@ -190,11 +160,10 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
     }));
   };
 
-  const filteredLocations = Array.isArray(locations) ? locations.filter(location =>
-    location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    location.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    location.description.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  // Filter locations by selected facility if provided
+  const displayLocations = selectedFacility 
+    ? locations.filter(location => location.id === selectedFacility.id)
+    : locations;
 
   const facilityTypes = [
     { value: 'gas_station', label: 'Gas Station' },
@@ -234,7 +203,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
     );
   }
 
-  if (view === 'dashboard' && selectedLocation) {
+  if (view === 'dashboard' && selectedFacility) {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
@@ -248,8 +217,8 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
         </div>
         
         <LocationDashboard 
-          locationId={selectedLocation.id} 
-          locationName={selectedLocation.name}
+          locationId={selectedFacility.id} 
+          locationName={selectedFacility.name}
         />
       </div>
     );
@@ -261,21 +230,9 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Building2 className="h-6 w-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Facilities</h2>
-        </div>
-      </div>
-
-      {/* Search Bar with Add Location Button */}
-      <div className="flex items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search locations..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <h2 className="text-2xl font-bold text-gray-900">
+            {selectedFacility ? `${selectedFacility.name} - Facility Details` : 'Facilities'}
+          </h2>
         </div>
       </div>
 
@@ -288,141 +245,146 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
         </div>
       )}
 
-      {/* Locations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredLocations.map((location) => (
-          <div key={location.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-            {editingLocation?.id === location.id ? (
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  value={editingLocation.name}
-                  onChange={(e) => setEditingLocation({...editingLocation, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Location name"
-                />
-                <textarea
-                  value={editingLocation.address}
-                  onChange={(e) => setEditingLocation({...editingLocation, address: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={2}
-                  placeholder="Address"
-                />
-                <textarea
-                  value={editingLocation.description}
-                  onChange={(e) => setEditingLocation({...editingLocation, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="Description"
-                />
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleUpdateLocation(editingLocation)}
-                    className="flex items-center space-x-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span>Save</span>
-                  </button>
-                  <button
-                    onClick={() => setEditingLocation(null)}
-                    className="flex items-center space-x-1 px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
-                  >
-                    <X className="h-4 w-4" />
-                    <span>Cancel</span>
-                  </button>
+      {/* Selected Facility Details */}
+      {selectedFacility ? (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Building2 className="h-8 w-8 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">{selectedFacility.name}</h3>
+                <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
+                  <MapPin className="h-4 w-4" />
+                  <span>{selectedFacility.address}</span>
+                </div>
+                <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                  <span>Type: {selectedFacility.type}</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    selectedFacility.status === 'Active' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {selectedFacility.status}
+                  </span>
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Building2 className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{location.name}</h3>
-                      <p className="text-sm text-gray-500">Created by {location.created_by_username}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {location.address && (
-                  <div className="flex items-start space-x-2 mb-3">
-                    <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
-                    <p className="text-sm text-gray-600">{location.address}</p>
-                  </div>
-                )}
-
-                {location.description && (
-                  <p className="text-sm text-gray-600 mb-4">{location.description}</p>
-                )}
-
-                {/* Statistics */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <p className="text-lg font-bold text-blue-600">{location.tank_count || 0}</p>
-                    <p className="text-xs text-gray-600">Tanks</p>
-                  </div>
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <p className="text-lg font-bold text-green-600">{location.permit_count || 0}</p>
-                    <p className="text-xs text-gray-600">Permits</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">
-                    Created {new Date(location.created_at).toLocaleDateString()}
-                  </span>
-                  
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleViewDashboard(location)}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      View Dashboard
-                    </button>
-                    
-                    {(currentUser?.is_superuser || hasPermission('edit_locations')) && (
-                      <button
-                        onClick={() => setEditingLocation(location)}
-                        className="text-gray-600 hover:text-gray-800"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                    )}
-                    
-                    {(currentUser?.is_superuser || hasPermission('delete_locations')) && (
-                      <button
-                        onClick={() => handleDeleteLocation(location.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
+            </div>
           </div>
-        ))}
-      </div>
 
-      {filteredLocations.length === 0 && !loading && (
+          {/* Facility Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-blue-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">12</div>
+              <div className="text-sm text-blue-800">Total Tanks</div>
+            </div>
+            <div className="bg-green-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">8</div>
+              <div className="text-sm text-green-800">Active Permits</div>
+            </div>
+            <div className="bg-yellow-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-yellow-600">2</div>
+              <div className="text-sm text-yellow-800">Expiring Soon</div>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">1</div>
+              <div className="text-sm text-purple-800">Inspections Due</div>
+            </div>
+          </div>
+
+          {/* Contact Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="text-lg font-medium text-gray-900 mb-3">Contact Information</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center space-x-2">
+                  <User className="h-4 w-4 text-gray-400" />
+                  <span>Manager: {selectedFacility.manager || 'Not specified'}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Phone className="h-4 w-4 text-gray-400" />
+                  <span>Phone: {selectedFacility.phone || 'Not specified'}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Mail className="h-4 w-4 text-gray-400" />
+                  <span>Email: {selectedFacility.email || 'Not specified'}</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-lg font-medium text-gray-900 mb-3">Facility Details</h4>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p>Use the tabs on the left to view detailed information about tanks, permits, release detection systems, and other facility-specific data.</p>
+                <p className="text-xs text-gray-500 mt-4">
+                  All data shown in other tabs will be filtered to show information for this facility only.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* All Locations Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {displayLocations.map((location) => (
+            <div key={location.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Building2 className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{location.name}</h3>
+                    <p className="text-sm text-gray-500">Created by {location.created_by_username}</p>
+                  </div>
+                </div>
+              </div>
+
+              {location.address && (
+                <div className="flex items-start space-x-2 mb-3">
+                  <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
+                  <p className="text-sm text-gray-600">{location.address}</p>
+                </div>
+              )}
+
+              {location.description && (
+                <p className="text-sm text-gray-600 mb-4">{location.description}</p>
+              )}
+
+              {/* Statistics */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <p className="text-lg font-bold text-blue-600">{location.tank_count || 0}</p>
+                  <p className="text-xs text-gray-600">Tanks</p>
+                </div>
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <p className="text-lg font-bold text-green-600">{location.permit_count || 0}</p>
+                  <p className="text-xs text-gray-600">Permits</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">
+                  Created {new Date(location.created_at).toLocaleDateString()}
+                </span>
+                
+                <button
+                  onClick={() => handleViewDashboard(location)}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {displayLocations.length === 0 && !loading && !selectedFacility && (
         <div className="text-center py-12">
           <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No locations found</h3>
-          <p className="text-gray-500 mb-4">
-            {searchTerm ? `No locations match "${searchTerm}"` : 'Get started by creating your first location.'}
-          </p>
-          {(currentUser?.is_superuser || hasPermission('create_locations')) && !searchTerm && (
-            <button
-              onClick={() => onCloseAddLocationModal && onCloseAddLocationModal()}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mx-auto"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Create First Location</span>
-            </button>
-          )}
+          <p className="text-gray-500 mb-4">Get started by creating your first location.</p>
         </div>
       )}
 
@@ -433,8 +395,8 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Building2 className="h-6 w-6 text-blue-600" />
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <MapPin className="h-6 w-6 text-green-600" />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900">Add New Location</h3>
               </div>
@@ -474,7 +436,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                       type="text"
                       value={newLocation.name}
                       onChange={(e) => updateNewLocationField('name', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="e.g., Downtown Station A"
                       required
                     />
@@ -487,7 +449,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                     <select
                       value={newLocation.facility_type}
                       onChange={(e) => updateNewLocationField('facility_type', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
                       {facilityTypes.map(type => (
                         <option key={type.value} value={type.value}>{type.label}</option>
@@ -509,7 +471,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                       type="text"
                       value={newLocation.address}
                       onChange={(e) => updateNewLocationField('address', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="e.g., 123 Main Street"
                     />
                   </div>
@@ -522,7 +484,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                       type="text"
                       value={newLocation.city}
                       onChange={(e) => updateNewLocationField('city', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="e.g., Los Angeles"
                     />
                   </div>
@@ -534,7 +496,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                     <select
                       value={newLocation.state}
                       onChange={(e) => updateNewLocationField('state', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
                       <option value="">Select State</option>
                       {usStates.map(state => (
@@ -551,7 +513,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                       type="text"
                       value={newLocation.zip}
                       onChange={(e) => updateNewLocationField('zip', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="e.g., 90210"
                       pattern="[0-9]{5}(-[0-9]{4})?"
                     />
@@ -564,7 +526,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                     <select
                       value={newLocation.country}
                       onChange={(e) => updateNewLocationField('country', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
                       <option value="United States">United States</option>
                       <option value="Canada">Canada</option>
@@ -587,7 +549,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                       type="text"
                       value={newLocation.manager}
                       onChange={(e) => updateNewLocationField('manager', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="e.g., John Smith"
                     />
                   </div>
@@ -601,7 +563,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                       type="tel"
                       value={newLocation.phone}
                       onChange={(e) => updateNewLocationField('phone', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="e.g., (555) 123-4567"
                     />
                   </div>
@@ -615,7 +577,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                       type="email"
                       value={newLocation.email}
                       onChange={(e) => updateNewLocationField('email', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="e.g., manager@facility.com"
                     />
                   </div>
@@ -632,7 +594,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
                   <textarea
                     value={newLocation.description}
                     onChange={(e) => updateNewLocationField('description', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     rows={4}
                     placeholder="Enter additional details about this location..."
                   />
@@ -657,7 +619,7 @@ export function LocationManager({ showAddLocationModal, onCloseAddLocationModal 
               <button
                 onClick={handleCreateLocation}
                 disabled={formLoading || !newLocation.name.trim()}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {formLoading ? (
                   <div className="flex items-center justify-center space-x-2">

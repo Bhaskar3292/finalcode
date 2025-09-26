@@ -65,14 +65,30 @@ export function UserManagement() {
 
   const handleCreateUser = async () => {
     try {
+      setError(null);
+      
       // Validate password strength
       if (newUser.password.length < 12) {
         setError('Password must be at least 12 characters long');
         return;
       }
       
+      if (!newUser.username.trim()) {
+        setError('Username is required');
+        return;
+      }
+      
+      if (!newUser.email.trim()) {
+        setError('Email is required');
+        return;
+      }
+      
       const createdUser = await apiService.createUser(newUser);
-      setUsers(prev => Array.isArray(prev) ? [createdUser.user, ...prev] : [createdUser.user]);
+      
+      // Handle different response formats
+      const userData = createdUser.user || createdUser;
+      setUsers(prev => Array.isArray(prev) ? [userData, ...prev] : [userData]);
+      
       setShowCreateModal(false);
       setNewUser({
         username: '',
@@ -83,9 +99,16 @@ export function UserManagement() {
         last_name: ''
       });
       setError(null);
+      
+      // Show success message
+      setTimeout(() => {
+        alert(`User "${userData.username}" created successfully!`);
+      }, 100);
+      
     } catch (error) {
       console.error('Create user error:', error);
-      setError('Failed to create user');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
+      setError(errorMessage);
     }
   };
 
