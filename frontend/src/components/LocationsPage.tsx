@@ -54,20 +54,45 @@ export function LocationsPage() {
   const { hasPermission, user: currentUser } = useAuthContext();
 
   useEffect(() => {
+    loadLocations();
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
+      console.log('Current user changed, reloading locations...');
       loadLocations();
     }
   }, [currentUser]);
-
   const loadLocations = async () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('Loading locations from API...');
+      console.log('Current user:', currentUser);
+      console.log('Is authenticated:', currentUser ? 'Yes' : 'No');
+      
       const data = await apiService.getLocations();
-      setLocations(Array.isArray(data) ? data : []);
+      console.log('Locations loaded:', data);
+      
+      // Handle different response formats
+      let locationList = [];
+      if (Array.isArray(data)) {
+        locationList = data;
+      } else if (data && Array.isArray(data.results)) {
+        locationList = data.results;
+      } else if (data && Array.isArray(data.locations)) {
+        locationList = data.locations;
+      } else {
+        console.warn('Unexpected data format:', data);
+        locationList = [];
+      }
+      
+      console.log('Setting locations state:', locationList);
+      setLocations(locationList);
     } catch (error) {
-      setError('Failed to load locations');
       console.error('Locations load error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load locations';
+      setError(errorMessage);
       setLocations([]);
     } finally {
       setLoading(false);
