@@ -33,43 +33,13 @@ export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange
     navigate('/login', { replace: true });
   };
 
-  // Mock facilities data - in production this would come from an API
+  // Mock facilities data - replace with API data in production
   const facilities = [
-    {
-      id: 1,
-      name: 'Downtown Station A',
-      address: '123 Main St, Downtown, CA 90210',
-      type: 'Gas Station',
-      status: 'Active'
-    },
-    {
-      id: 2,
-      name: 'Highway 101 Facility',
-      address: '456 Highway 101, Midtown, CA 90211',
-      type: 'Truck Stop',
-      status: 'Active'
-    },
-    {
-      id: 3,
-      name: 'Industrial Park B',
-      address: '789 Industrial Blvd, Industrial Area, CA 90212',
-      type: 'Storage Facility',
-      status: 'Maintenance'
-    },
-    {
-      id: 4,
-      name: 'Westside Complex',
-      address: '321 West Ave, Westside, CA 90213',
-      type: 'Gas Station',
-      status: 'Active'
-    },
-    {
-      id: 5,
-      name: 'Eastside Terminal',
-      address: '654 East Blvd, Eastside, CA 90214',
-      type: 'Terminal',
-      status: 'Active'
-    }
+    { id: 1, name: 'Downtown Station A', address: '123 Main St, Downtown, CA 90210', type: 'Gas Station', status: 'Active' },
+    { id: 2, name: 'Highway 101 Facility', address: '456 Highway 101, Midtown, CA 90211', type: 'Truck Stop', status: 'Active' },
+    { id: 3, name: 'Industrial Park B', address: '789 Industrial Blvd, Industrial Area, CA 90212', type: 'Storage Facility', status: 'Maintenance' },
+    { id: 4, name: 'Westside Complex', address: '321 West Ave, Westside, CA 90213', type: 'Gas Station', status: 'Active' },
+    { id: 5, name: 'Eastside Terminal', address: '654 East Blvd, Eastside, CA 90214', type: 'Terminal', status: 'Active' }
   ];
 
   const filteredFacilities = facilities.filter(facility =>
@@ -84,15 +54,14 @@ export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
+    setSearchTerm(e.target.value);
     setShowFacilityDropdown(true);
   };
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between">
-        {/* Left side - Current Facility Display */}
+        {/* Left - Current Facility Display */}
         <div className="flex items-center min-w-0 flex-1">
           {selectedFacility && (
             <div className="flex items-center space-x-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
@@ -103,50 +72,53 @@ export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange
         </div>
 
         {/* Center - Search Bar */}
-        <div className="flex-1 max-w-2xl mx-8">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search and select facility..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              onFocus={() => setShowFacilityDropdown(true)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            
-            {/* Facility Dropdown */}
-            {showFacilityDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-                {filteredFacilities.length > 0 ? (
-                  filteredFacilities.map((facility) => (
-                    <button
-                      key={facility.id}
-                      onClick={() => handleFacilitySelect(facility)}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Building2 className="h-4 w-4 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{facility.name}</p>
-                          <p className="text-xs text-gray-500">{facility.address}</p>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <span className="text-xs text-gray-400">{facility.type}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              facility.status === 'Active' 
-                                ? 'bg-green-100 text-green-700' 
-                                : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {facility.status}
-                            </span>
-                          </div>
+        <div className="flex-1 max-w-2xl mx-8 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search and select facility..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            onFocus={() => setShowFacilityDropdown(true)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+
+          {/* Facility Dropdown */}
+          {showFacilityDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+              {filteredFacilities.length > 0 ? (
+                filteredFacilities.map((facility) => (
+                  <button
+                    key={facility.id}
+                    onClick={() => handleFacilitySelect(facility)}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Building2 className="h-4 w-4 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{facility.name}</p>
+                        <p className="text-xs text-gray-500">{facility.address}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-xs text-gray-400">{facility.type}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            facility.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {facility.status}
+                          </span>
                         </div>
                       </div>
-                    </button>
-                  ))
-                ) : (
-                  searchTerm.length > 0 ? (
-                    <div className="px-4 py-3 text-sm text-gray-500">
+                    </div>
+                  </button>
+                ))
+              ) : searchTerm.length > 0 ? (
+                <div className="px-4 py-3 text-sm text-gray-500">No matching facilities found.</div>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        {/* Right - Notifications and User Menu */}
+        <div className="flex items-center space-x-4">
           <div className="text-sm text-gray-600">
             <span className="font-medium truncate">{user?.organization}</span>
           </div>
@@ -206,7 +178,7 @@ export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange
           </div>
         </div>
       </div>
-      
+
       {/* Click outside to close dropdown */}
       {showFacilityDropdown && (
         <div 
