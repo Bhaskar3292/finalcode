@@ -132,6 +132,38 @@ export function UserManagement() {
     }
   };
 
+  const handleUpdateUser = async (user: User) => {
+    try {
+      setError(null);
+      console.log('Updating user:', user);
+      
+      const updatedUser = await apiService.updateUser(user.id, {
+        username: user.username,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        role: user.role,
+        is_active: user.is_active
+      });
+      
+      console.log('User updated successfully:', updatedUser);
+      
+      // Reload the entire user list to ensure consistency
+      await loadUsers();
+      setEditingUser(null);
+      setSuccess('User updated successfully!');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      
+    } catch (error) {
+      console.error('Create user error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
+      setError(errorMessage);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setNewUser({
       username: '',
@@ -193,35 +225,6 @@ export function UserManagement() {
     }
   };
 
-  const handleUpdateUser = async (user: User) => {
-    try {
-      setError(null);
-      console.log('Updating user:', user);
-      
-      const updatedUser = await apiService.updateUser(user.id, {
-        username: user.username,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        role: user.role,
-        is_active: user.is_active
-      });
-      
-      console.log('User updated successfully:', updatedUser);
-      
-      // Reload the entire user list to ensure consistency
-      await loadUsers();
-      setEditingUser(null);
-      setSuccess('User updated successfully!');
-      
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccess(null), 5000);
-      
-    } catch (error) {
-      console.error('Update user error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update user';
-      setError(errorMessage);
-    }
-  };
 
   const filteredUsers = Array.isArray(users) ? users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
