@@ -147,6 +147,21 @@ export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange
                 ) : (
                   searchTerm.length > 0 ? (
                     <div className="px-4 py-3 text-sm text-gray-500">
+                      No facilities found
+                    </div>
+                  ) : (
+                    <div className="px-4 py-3 text-sm text-gray-500">
+                      Start typing to search facilities...
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right side - User Menu */}
+        <div className="flex items-center space-x-4">
           <div className="text-sm text-gray-600">
             <span className="font-medium truncate">{user?.organization}</span>
           </div>
