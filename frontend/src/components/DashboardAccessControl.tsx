@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Eye, EyeOff, Save, RotateCcw, Settings, Building2, Zap, FileText, Users, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { Shield, Eye, EyeOff, Save, RotateCcw, Settings, Building2, Zap, FileText, Users, AlertTriangle } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 
 interface TabPermission {
@@ -400,17 +400,4 @@ export function DashboardAccessControl() {
       )}
     </div>
   );
-
-  function getRoleColor(role: string) {
-    switch (role) {
-      case 'admin':
-        return 'text-purple-600 bg-purple-100';
-      case 'contributor':
-        return 'text-blue-600 bg-blue-100';
-      case 'viewer':
-        return 'text-green-600 bg-green-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  }
 }
