@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  MapPin, 
-  Plus, 
-  Building2, 
-  Phone, 
-  Mail, 
-  User, 
-  Edit, 
-  Trash2, 
-  Eye,
-  X,
-  Save
-} from 'lucide-react';
+import { MapPin, Plus, Building2, Phone, Mail, User, CreditCard as Edit, Trash2, Eye, X, Save } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuthContext } from '../contexts/AuthContext';
 
