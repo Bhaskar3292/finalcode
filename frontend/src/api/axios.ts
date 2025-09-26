@@ -110,8 +110,7 @@ api.interceptors.response.use(
         status: error.response?.status,
         message: error.message,
         data: error.response?.data,
-        config: originalRequest,
-        headers: originalRequest?.headers
+        config: originalRequest
       });
     }
 
@@ -167,16 +166,6 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle 403 Forbidden - permission denied
-    if (error.response?.status === 403) {
-      const enhancedError = new Error(
-        error.response?.data?.error || 
-        error.response?.data?.detail || 
-        'Access denied. You do not have permission to perform this action.'
-      );
-      return Promise.reject(enhancedError);
-    }
-
     // Handle network errors
     if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
       const enhancedError = new Error(
@@ -197,54 +186,6 @@ api.interceptors.response.use(
   }
 );
 
-/**
- * Token expiry monitoring
- */
-export const startTokenExpiryMonitoring = () => {
-  // Check token expiry every minute
-  const checkInterval = setInterval(() => {
-    const token = tokenManager.getAccessToken();
-    if (token) {
-      try {
-        // Decode JWT token to check expiry
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const currentTime = Math.floor(Date.now() / 1000);
-        
-        // Check if token expires in the next 5 minutes
-        if (payload.exp && payload.exp - currentTime < 300) {
-          console.log('🔄 Token expiring soon, attempting refresh...');
-          
-          // Try to refresh token
-          const refreshToken = tokenManager.getRefreshToken();
-          if (refreshToken) {
-            api.post('/api/auth/token/refresh/', { refresh: refreshToken })
-              .then(response => {
-                const { access, refresh: newRefresh } = response.data;
-                tokenManager.setTokens(access, newRefresh || refreshToken);
-                console.log('✅ Token refreshed successfully');
-              })
-              .catch(() => {
-                console.log('❌ Token refresh failed, logging out...');
-                tokenManager.clearTokens();
-                window.dispatchEvent(new CustomEvent('auth:logout'));
-              });
-          }
-        }
-        
-        // Check if token is already expired
-        if (payload.exp && payload.exp < currentTime) {
-          console.log('❌ Token expired, logging out...');
-          tokenManager.clearTokens();
-          window.dispatchEvent(new CustomEvent('auth:logout'));
-        }
-      } catch (error) {
-        console.error('Error checking token expiry:', error);
-      }
-    }
-  }, 60000); // Check every minute
-  
-  return () => clearInterval(checkInterval);
-};
 /**
  * API health check
  */

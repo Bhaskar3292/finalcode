@@ -32,29 +32,8 @@ class LocationListCreateView(generics.ListCreateAPIView):
         # Add logging for debugging
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"LocationListCreateView accessed by: {self.request.user.username}")
         logger.info(f"LocationListCreateView queryset count: {queryset.count()}")
-        for location in queryset:
-            logger.info(f"Location: {location.name} (ID: {location.id})")
         return queryset
-    
-    def list(self, request, *args, **kwargs):
-        """Override list to add debugging and ensure proper response format"""
-        try:
-            queryset = self.get_queryset()
-            serializer = self.get_serializer(queryset, many=True)
-            logger.info(f"Serialized {len(serializer.data)} locations")
-            
-            return Response({
-                'locations': serializer.data,
-                'count': len(serializer.data)
-            })
-        except Exception as e:
-            logger.error(f"Error in LocationListCreateView: {e}")
-            return Response(
-                {'error': 'Failed to fetch locations', 'detail': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
     
     def perform_create(self, serializer):
         # Only admins and contributors can create locations
