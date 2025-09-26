@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
+import { startTokenExpiryMonitoring } from '../api/axios';
 import { 
   User, 
   LoginRequest, 
@@ -39,6 +40,21 @@ export function useAuth(): UseAuthReturn {
   // Initialize authentication state on mount
   useEffect(() => {
     initializeAuth();
+    
+    // Start token expiry monitoring
+    const stopMonitoring = startTokenExpiryMonitoring();
+    
+    // Listen for auth logout events
+    const handleAuthLogout = () => {
+      logout();
+    };
+    
+    window.addEventListener('auth:logout', handleAuthLogout);
+    
+    return () => {
+      stopMonitoring();
+      window.removeEventListener('auth:logout', handleAuthLogout);
+    };
   }, []);
 
   /**

@@ -395,9 +395,46 @@ class ApiService {
    */
   async createUser(data: any): Promise<any> {
     try {
-      const response = await api.post('/api/auth/users/create/', data);
+      // Ensure we only send required fields
+      const userData = {
+        username: data.username,
+        password: data.password,
+        role: data.role,
+        first_name: data.first_name || '',
+        last_name: data.last_name || ''
+      };
+      
+      console.log('Creating user with data:', userData);
+      console.log('Current auth token:', tokenManager.getAccessToken() ? 'Present' : 'Missing');
+      
+      const response = await api.post('/api/auth/users/create/', userData);
+      console.log('User creation response:', response.data);
       return response.data;
     } catch (error: any) {
+      console.error('User creation error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      // Handle specific error cases
+      if (error.response?.status === 403) {
+        throw new Error('Access denied. Only administrators can create users.');
+      } else if (error.response?.status === 401) {
+        throw new Error('Authentication required. Please log in again.');
+      } else if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      } else if (error.response?.data) {
+        // Handle field-specific errors
+        const errorData = error.response.data;
+        if (typeof errorData === 'object') {
+          const errorMessages = Object.entries(errorData)
+            .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+            .join('; ');
+          throw new Error(errorMessages);
+        }
+      }
+      
       throw new Error(error.response?.data?.error || error.message || 'Failed to create user');
     }
   }

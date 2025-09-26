@@ -81,6 +81,18 @@ export function UserManagement() {
         return;
       }
       
+      // Check if user is authenticated
+      if (!currentUser) {
+        setError('Authentication required. Please log in again.');
+        return;
+      }
+      
+      // Check permissions
+      if (!currentUser.is_superuser && !hasPermission('create_users')) {
+        setError('You do not have permission to create users.');
+        return;
+      }
+      
       console.log('Creating user with data:', newUser);
       
       const createdUser = await apiService.createUser(newUser);
@@ -535,6 +547,9 @@ export function UserManagement() {
                   placeholder="Enter username"
                   required
                 />
+                <div className="mt-1 text-xs text-gray-500">
+                  Username must be unique and contain only letters, numbers, and underscores
+                </div>
               </div>
               
               <div>
@@ -559,7 +574,7 @@ export function UserManagement() {
                   </div>
                 )}
                 <div className="mt-1 text-xs text-gray-500">
-                  Must be 8+ characters with uppercase, lowercase, numbers, and symbols
+                  Must be 12+ characters with uppercase, lowercase, numbers, and symbols
                 </div>
               </div>
               

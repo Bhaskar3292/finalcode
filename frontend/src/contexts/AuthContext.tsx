@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { 
   User, 
@@ -42,6 +43,22 @@ interface AuthProviderProps {
  */
 export function AuthProvider({ children }: AuthProviderProps) {
   const auth = useAuth();
+  const navigate = useNavigate();
+  
+  // Handle automatic logout on token expiry
+  React.useEffect(() => {
+    const handleAutoLogout = async () => {
+      console.log('🔒 Auto-logout triggered due to token expiry');
+      await auth.logout();
+      navigate('/login', { replace: true });
+    };
+    
+    window.addEventListener('auth:logout', handleAutoLogout);
+    
+    return () => {
+      window.removeEventListener('auth:logout', handleAutoLogout);
+    };
+  }, [auth, navigate]);
 
   return (
     <AuthContext.Provider value={auth}>

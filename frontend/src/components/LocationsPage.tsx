@@ -106,10 +106,17 @@ export function LocationsPage() {
       };
       
       const createdLocation = await apiService.createLocation(locationData);
-      setLocations(prev => Array.isArray(prev) ? [createdLocation, ...prev] : [createdLocation]);
+      
+      // Reload locations to get fresh data
+      await loadLocations();
       
       setShowAddModal(false);
       resetForm();
+      
+      // Notify parent components about the new location
+      window.dispatchEvent(new CustomEvent('location:created', { 
+        detail: createdLocation 
+      }));
       
     } catch (error) {
       console.error('Create location error:', error);

@@ -272,19 +272,25 @@ class CreateUserView(generics.CreateAPIView):
     Create new user endpoint (admin only)
     """
     serializer_class = CreateUserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminUser]
     
     def create(self, request, *args, **kwargs):
-        # Check if user is admin or superuser
-        if not (request.user.role == 'admin' or request.user.is_superuser):
-            return Response(
-                {'error': 'Only administrators can create users'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+        logger.info(f"User creation request from: {request.user.username} (role: {request.user.role})")
+        logger.info(f"Request data: {request.data}")
         
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+            
+            logger.info(f"User created successfully: {user.username}")
+        except Exception as e:
+            logger.error(f"User creation failed: {e}")
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         # Log user creation
         log_security_event(
