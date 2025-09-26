@@ -85,9 +85,8 @@ export function UserManagement() {
       
       const createdUser = await apiService.createUser(newUser);
       
-      // Handle different response formats
-      const userData = createdUser.user || createdUser;
-      setUsers(prev => Array.isArray(prev) ? [userData, ...prev] : [userData]);
+      // Reload the entire user list to ensure consistency
+      await loadUsers();
       
       setShowCreateModal(false);
       setNewUser({
@@ -102,7 +101,7 @@ export function UserManagement() {
       
       // Show success message
       setTimeout(() => {
-        alert(`User "${userData.username}" created successfully!`);
+        alert(`User "${newUser.username}" created successfully!`);
       }, 100);
       
     } catch (error) {
@@ -123,7 +122,8 @@ export function UserManagement() {
         is_active: user.is_active
       });
       
-      setUsers(prev => Array.isArray(prev) ? prev.map(u => u.id === user.id ? updatedUser.user : u) : []);
+      // Reload the entire user list to ensure consistency
+      await loadUsers();
       setEditingUser(null);
       setError(null);
     } catch (error) {
@@ -136,7 +136,8 @@ export function UserManagement() {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
         await apiService.deleteUser(userId);
-        setUsers(prev => Array.isArray(prev) ? prev.filter(u => u.id !== userId) : []);
+        // Reload the entire user list to ensure consistency
+        await loadUsers();
         setError(null);
       } catch (error) {
         console.error('Delete user error:', error);
