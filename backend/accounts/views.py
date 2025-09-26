@@ -313,9 +313,10 @@ class UserListView(generics.ListAPIView):
     
     def get_queryset(self):
         # Check if user is admin or superuser
-        if not (self.request.user.role == 'admin' or self.request.user.is_superuser):
-            return User.objects.none()
-        return User.objects.all().order_by('-created_at')
+        user = self.request.user
+        if user.is_superuser or user.role == 'admin':
+            return User.objects.all().order_by('-created_at')
+        return User.objects.none()
 
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):

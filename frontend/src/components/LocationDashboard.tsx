@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, CreditCard as Edit, Save, X, Trash2, Plus } from 'lucide-react';
 import { apiService } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface LocationDashboardProps {
   locationId: number;
@@ -36,7 +36,7 @@ export function LocationDashboard({ locationId, locationName }: LocationDashboar
   const [error, setError] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission } = useAuthContext();
 
   useEffect(() => {
     loadDashboard();

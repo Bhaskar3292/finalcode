@@ -1,6 +1,6 @@
 import React from 'react';
 import { Hop as Home, Building2, Zap, Shield, FileText, Settings, Users, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -10,7 +10,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, activeView, onViewChange, onToggleSidebar }: SidebarProps) {
-  const { hasPermission, user } = useAuth();
+  const { hasPermission, user } = useAuthContext();
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },

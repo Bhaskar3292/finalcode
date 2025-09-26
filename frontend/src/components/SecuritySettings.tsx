@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { TwoFactorAuth } from './TwoFactorAuth';
 import { apiService } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 export function SecuritySettings() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -30,7 +30,7 @@ export function SecuritySettings() {
     confirm_password: ''
   });
 
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser } = useAuthContext();
 
   const handlePasswordChange = async () => {
     try {

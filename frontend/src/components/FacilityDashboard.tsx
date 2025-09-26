@@ -4,10 +4,7 @@ import {
   Zap, 
   AlertTriangle, 
   FileText, 
-  Activity,
-  TrendingUp,
-  Users,
-  Calendar
+  Activity
 } from 'lucide-react';
 
 interface FacilityDashboardProps {

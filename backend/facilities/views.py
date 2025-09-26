@@ -28,12 +28,18 @@ class LocationListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        return Location.objects.filter(is_active=True).order_by('name')
+        queryset = Location.objects.filter(is_active=True).order_by('name')
+        # Add logging for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"LocationListCreateView queryset count: {queryset.count()}")
+        return queryset
     
     def perform_create(self, serializer):
         # Only admins and contributors can create locations
-        if self.request.user.role not in ['admin', 'contributor'] and not self.request.user.is_superuser:
-            raise permissions.PermissionDenied("Only admins and contributors can create locations")
+        user = self.request.user
+        if not (user.is_superuser or user.role in ['admin', 'contributor']):
+            raise permissions.PermissionDenied("Insufficient permissions to create locations")
         
         with transaction.atomic():
             location = serializer.save(created_by=self.request.user)

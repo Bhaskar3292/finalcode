@@ -10,12 +10,21 @@ class LocationSerializer(serializers.ModelSerializer):
     Serializer for Location model
     """
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    tank_count = serializers.SerializerMethodField()
+    permit_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Location
         fields = ['id', 'name', 'address', 'description', 'created_by', 
-                 'created_by_username', 'created_at', 'updated_at', 'is_active']
+                 'created_by_username', 'created_at', 'updated_at', 'is_active',
+                 'tank_count', 'permit_count']
         read_only_fields = ['created_by', 'created_at', 'updated_at']
+    
+    def get_tank_count(self, obj):
+        return obj.tanks.count()
+    
+    def get_permit_count(self, obj):
+        return obj.permits.count()
 
 
 class DashboardSectionSerializer(serializers.ModelSerializer):

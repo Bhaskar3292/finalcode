@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { 
   Users, 
-  Activity, 
-  Database, 
   Plus,
   UserPlus,
   Search,
@@ -11,25 +9,7 @@ import {
 import { TabNavigation } from './TabNavigation';
 import { UserManagement } from './UserManagement';
 import { PermissionsManager } from './PermissionsManager';
-import { useAuth } from '../hooks/useAuth';
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  status: 'Active' | 'Inactive';
-  lastLogin: string;
-  facilities: string[];
-}
-
-interface Role {
-  id: number;
-  name: string;
-  description: string;
-  permissions: string[];
-  userCount: number;
-}
+import { useAuthContext } from '../contexts/AuthContext';
 
 /**
  * AdminDashboard Component
@@ -38,8 +18,7 @@ interface Role {
  */
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('users');
-  const { user } = useAuth();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser } = useAuthContext();
 
   const tabs = [
     { id: 'users', label: 'User Management' },
@@ -47,7 +26,7 @@ export function AdminDashboard() {
   ];
 
   // Ensure superusers can access admin dashboard
-  if (!currentUser?.is_superuser && currentUser?.role !== 'admin') {
+  if (!currentUser || (!currentUser.is_superuser && currentUser.role !== 'admin')) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <Shield className="h-12 w-12 text-red-400 mx-auto mb-4" />
@@ -56,6 +35,7 @@ export function AdminDashboard() {
       </div>
     );
   }
+  
   const renderTabContent = () => {
     switch (activeTab) {
       case 'users':

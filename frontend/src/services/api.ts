@@ -246,8 +246,9 @@ class ApiService {
   async getLocations(): Promise<any[]> {
     try {
       const response = await api.get('/api/facilities/locations/');
-      return response.data;
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error: any) {
+      console.error('Get locations error:', error);
       throw new Error(error.response?.data?.error || error.message || 'Failed to get locations');
     }
   }
@@ -382,8 +383,9 @@ class ApiService {
   async getUsers(): Promise<any[]> {
     try {
       const response = await api.get('/api/auth/users/');
-      return response.data;
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error: any) {
+      console.error('Get users error:', error);
       throw new Error(error.response?.data?.error || error.message || 'Failed to get users');
     }
   }

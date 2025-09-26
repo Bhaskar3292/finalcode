@@ -28,7 +28,7 @@ export function TankManagement({ selectedFacility }: TankManagementProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [newTankData, setNewTankData] = useState({
     name: '',
-    facility: '',
+    facility: selectedFacility?.name || '',
     product: '',
     capacity: '',
     current: '',

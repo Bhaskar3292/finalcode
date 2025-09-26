@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Plus, CreditCard as Edit, Trash2, Save, X, MapPin, Search } from 'lucide-react';
 import { apiService } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 import { LocationDashboard } from './LocationDashboard';
 
 interface Location {
@@ -29,11 +29,10 @@ export function LocationManager() {
   });
   const [view, setView] = useState<'list' | 'dashboard'>('list');
   
-  const { hasPermission } = useAuth();
-  const { user: currentUser } = useAuth();
+  const { hasPermission, user: currentUser } = useAuthContext();
 
   useEffect(() => {
-    if (currentUser?.is_superuser || hasPermission('view_locations')) {
+    if (currentUser) {
       loadLocations();
     }
   }, [currentUser]);
@@ -41,11 +40,13 @@ export function LocationManager() {
   const loadLocations = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await apiService.getLocations();
-      setLocations(data);
+      setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
       setError('Failed to load locations');
       console.error('Locations load error:', error);
+      setLocations([]);
     } finally {
       setLoading(false);
     }
@@ -53,14 +54,20 @@ export function LocationManager() {
 
   const handleCreateLocation = async () => {
     try {
+      if (!newLocation.name.trim()) {
+        setError('Location name is required');
+        return;
+      }
+      
       const createdLocation = await apiService.createLocation(newLocation);
-      setLocations(prev => [createdLocation, ...prev]);
+      setLocations(prev => Array.isArray(prev) ? [createdLocation, ...prev] : [createdLocation]);
       setShowCreateModal(false);
       setNewLocation({
         name: '',
         address: '',
         description: ''
       });
+      setError(null);
     } catch (error) {
       console.error('Create location error:', error);
       setError('Failed to create location');
@@ -75,8 +82,9 @@ export function LocationManager() {
         description: location.description
       });
       
-      setLocations(prev => prev.map(l => l.id === location.id ? updatedLocation : l));
+      setLocations(prev => Array.isArray(prev) ? prev.map(l => l.id === location.id ? updatedLocation : l) : []);
       setEditingLocation(null);
+      setError(null);
     } catch (error) {
       console.error('Update location error:', error);
       setError('Failed to update location');
@@ -87,11 +95,12 @@ export function LocationManager() {
     if (window.confirm('Are you sure you want to delete this location?')) {
       try {
         await apiService.deleteLocation(locationId);
-        setLocations(prev => prev.filter(l => l.id !== locationId));
+        setLocations(prev => Array.isArray(prev) ? prev.filter(l => l.id !== locationId) : []);
         if (selectedLocation?.id === locationId) {
           setSelectedLocation(null);
           setView('list');
         }
+        setError(null);
       } catch (error) {
         console.error('Delete location error:', error);
         setError('Failed to delete location');
@@ -104,18 +113,18 @@ export function LocationManager() {
     setView('dashboard');
   };
 
-  const filteredLocations = locations.filter(location =>
+  const filteredLocations = Array.isArray(locations) ? locations.filter(location =>
     location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     location.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
     location.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) : [];
 
-  if (!currentUser?.is_superuser && !hasPermission('view_locations')) {
+  if (!currentUser) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <Building2 className="h-12 w-12 text-red-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-red-900 mb-2">Access Denied</h3>
-        <p className="text-red-700">You don't have permission to view locations.</p>
+        <h3 className="text-lg font-medium text-red-900 mb-2">Authentication Required</h3>
+        <p className="text-red-700">Please log in to view locations.</p>
       </div>
     );
   }

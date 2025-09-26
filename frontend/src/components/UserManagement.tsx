@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, CreditCard as Edit, Trash2, Save, X, UserPlus, Search } from 'lucide-react';
 import { apiService } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface User {
   id: number;
@@ -30,11 +30,10 @@ export function UserManagement() {
     last_name: ''
   });
   
-  const { hasPermission } = useAuth();
-  const { user: currentUser } = useAuth();
+  const { hasPermission, user: currentUser } = useAuthContext();
 
   useEffect(() => {
-    if (currentUser?.is_superuser || hasPermission('view_users')) {
+    if (currentUser) {
       loadUsers();
     }
   }, [currentUser]);
@@ -42,11 +41,13 @@ export function UserManagement() {
   const loadUsers = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await apiService.getUsers();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       setError('Failed to load users');
       console.error('Users load error:', error);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -71,7 +72,7 @@ export function UserManagement() {
       }
       
       const createdUser = await apiService.createUser(newUser);
-      setUsers(prev => [createdUser.user, ...prev]);
+      setUsers(prev => Array.isArray(prev) ? [createdUser.user, ...prev] : [createdUser.user]);
       setShowCreateModal(false);
       setNewUser({
         username: '',
@@ -81,7 +82,7 @@ export function UserManagement() {
         first_name: '',
         last_name: ''
       });
-      setError('');
+      setError(null);
     } catch (error) {
       console.error('Create user error:', error);
       setError('Failed to create user');
@@ -99,9 +100,9 @@ export function UserManagement() {
         is_active: user.is_active
       });
       
-      setUsers(prev => prev.map(u => u.id === user.id ? updatedUser.user : u));
+      setUsers(prev => Array.isArray(prev) ? prev.map(u => u.id === user.id ? updatedUser.user : u) : []);
       setEditingUser(null);
-      setError('');
+      setError(null);
     } catch (error) {
       console.error('Update user error:', error);
       setError('Failed to update user');
@@ -112,8 +113,8 @@ export function UserManagement() {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
         await apiService.deleteUser(userId);
-        setUsers(prev => prev.filter(u => u.id !== userId));
-        setError('');
+        setUsers(prev => Array.isArray(prev) ? prev.filter(u => u.id !== userId) : []);
+        setError(null);
       } catch (error) {
         console.error('Delete user error:', error);
         setError('Failed to delete user');
@@ -121,12 +122,12 @@ export function UserManagement() {
     }
   };
 
-  const filteredUsers = users.filter(user =>
+  const filteredUsers = Array.isArray(users) ? users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.last_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) : [];
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -157,12 +158,12 @@ export function UserManagement() {
 
   const passwordStrength = getPasswordStrength(newUser.password);
 
-  if (!currentUser?.is_superuser && !hasPermission('view_users')) {
+  if (!currentUser) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <Users className="h-12 w-12 text-red-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-red-900 mb-2">Access Denied</h3>
-        <p className="text-red-700">You don't have permission to view users.</p>
+        <h3 className="text-lg font-medium text-red-900 mb-2">Authentication Required</h3>
+        <p className="text-red-700">Please log in to view users.</p>
       </div>
     );
   }

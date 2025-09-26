@@ -11,10 +11,10 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 export function ProfilePanel() {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);

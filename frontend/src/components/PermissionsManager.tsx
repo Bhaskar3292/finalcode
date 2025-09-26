@@ -9,7 +9,7 @@ import {
   X
 } from 'lucide-react';
 import { apiService } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface Permission {
   id: number;
@@ -38,11 +38,10 @@ export function PermissionsManager() {
   const [hasChanges, setHasChanges] = useState(false);
   const [originalMatrix, setOriginalMatrix] = useState<PermissionsMatrix>({});
   
-  const { hasPermission, user } = useAuth();
-  const { hasPermission: hasPermissionCheck, user: currentUser } = useAuth();
+  const { hasPermission, user: currentUser } = useAuthContext();
 
   useEffect(() => {
-    if (currentUser?.is_superuser || hasPermissionCheck('manage_users')) {
+    if (currentUser) {
       loadPermissionsMatrix();
     }
   }, [currentUser]);
@@ -50,6 +49,7 @@ export function PermissionsManager() {
   const loadPermissionsMatrix = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await apiService.getPermissionsMatrix();
       setMatrix(data);
       setOriginalMatrix(JSON.parse(JSON.stringify(data))); // Deep copy
@@ -126,16 +126,14 @@ export function PermissionsManager() {
     }
   };
 
-  if (!user?.is_superuser && !hasPermission('manage_users')) {
-    if (!currentUser?.is_superuser && !hasPermissionCheck('manage_users')) {
+  if (!currentUser) {
       return (
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
           <Shield className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-red-900 mb-2">Access Denied</h3>
-          <p className="text-red-700">You don't have permission to manage permissions.</p>
+          <h3 className="text-lg font-medium text-red-900 mb-2">Authentication Required</h3>
+          <p className="text-red-700">Please log in to manage permissions.</p>
         </div>
       );
-    }
   }
 
   if (loading) {

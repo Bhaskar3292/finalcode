@@ -3,13 +3,13 @@ import { Sidebar } from './Sidebar';
 import { TopNavigation } from './TopNavigation';
 import { MainContent } from './MainContent';
 import { AdminDashboard } from './AdminDashboard';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 export function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedFacility, setSelectedFacility] = useState<any>(null);
-  const { hasPermission, user } = useAuth();
+  const { hasPermission, user } = useAuthContext();
 
   const handleFacilitySelect = (facility: any) => {
     setSelectedFacility(facility);
