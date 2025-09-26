@@ -11,15 +11,16 @@ import { ProfilePanel } from './ProfilePanel';
 interface MainContentProps {
   activeView: string;
   selectedFacility?: any;
+  refreshKey?: number;
 }
 
-export function MainContent({ activeView, selectedFacility }: MainContentProps) {
+export function MainContent({ activeView, selectedFacility, refreshKey }: MainContentProps) {
   const renderContent = () => {
     switch (activeView) {
       case 'dashboard':
         return <FacilityDashboard selectedFacility={selectedFacility} />;
       case 'locations':
-        return <LocationsPage />;
+        return <LocationsPage key={refreshKey} />;
       case 'facilities':
         return <LocationManager selectedFacility={selectedFacility} />;
       case 'tanks':

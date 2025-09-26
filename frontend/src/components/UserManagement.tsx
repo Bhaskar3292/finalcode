@@ -37,22 +37,45 @@ export function UserManagement() {
   const { hasPermission, user: currentUser } = useAuthContext();
 
   useEffect(() => {
+    loadUsers();
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
+      console.log('Current user changed, reloading users...');
       loadUsers();
     }
   }, [currentUser]);
-
   const loadUsers = async () => {
     try {
       setLoading(true);
       setError(null);
       console.log('Loading users from API...');
+      console.log('Current user:', currentUser);
+      console.log('Is authenticated:', currentUser ? 'Yes' : 'No');
+      
       const data = await apiService.getUsers();
       console.log('Users loaded:', data);
-      setUsers(Array.isArray(data) ? data : []);
+      
+      // Handle different response formats
+      let userList = [];
+      if (Array.isArray(data)) {
+        userList = data;
+      } else if (data && Array.isArray(data.results)) {
+        userList = data.results;
+      } else if (data && Array.isArray(data.users)) {
+        userList = data.users;
+      } else {
+        console.warn('Unexpected data format:', data);
+        userList = [];
+      }
+      
+      console.log('Setting users state:', userList);
+      setUsers(userList);
     } catch (error) {
       console.error('Users load error:', error);
-      setError('Failed to load users');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load users';
+      setError(errorMessage);
       setUsers([]);
     } finally {
       setLoading(false);
@@ -65,6 +88,11 @@ export function UserManagement() {
       setError(null);
       setSuccess(null);
       
+      // Debug authentication state
+      console.log('Current user:', currentUser);
+      console.log('User role:', currentUser?.role);
+      console.log('Is superuser:', currentUser?.is_superuser);
+      
       // Validate required fields
       if (!newUser.username.trim()) {
         setError('Username is required');
@@ -76,32 +104,47 @@ export function UserManagement() {
         return;
       }
       
-      if (newUser.password.length < 8) {
-        setError('Password must be at least 8 characters long');
+      if (newUser.password.length < 12) {
+        setError('Password must be at least 12 characters long');
         return;
       }
       
+      // Check if user is authenticated
+      if (!currentUser) {
+        setError('Authentication required. Please log in again.');
+        return;
+      }
+      
+      // Check permissions
+      if (!currentUser.is_superuser && !hasPermission('create_users')) {
+        setError('You do not have permission to create users.');
+        return;
+      }
+      
+      // Prepare user data with only required fields
+      const userData = {
+        username: newUser.username.trim(),
+        password: newUser.password,
+        role: newUser.role,
+        first_name: newUser.first_name.trim(),
+        last_name: newUser.last_name.trim()
+      };
+      
       console.log('Creating user with data:', newUser);
       
-      const createdUser = await apiService.createUser(newUser);
+      const createdUser = await apiService.createUser(userData);
       console.log('User created successfully:', createdUser);
       
       // Reload the entire user list to ensure consistency
       await loadUsers();
       
       setShowCreateModal(false);
-      setNewUser({
-        username: '',
-        password: '',
-        role: 'viewer',
-        first_name: '',
-        last_name: ''
-      });
+      resetForm();
       
-      setSuccess(`User "${newUser.username}" created successfully!`);
+      setSuccess(`User "${userData.username}" created successfully!`);
       
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(null), 3000);
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccess(null), 5000);
       
     } catch (error) {
       console.error('Create user error:', error);
@@ -136,12 +179,36 @@ export function UserManagement() {
       setTimeout(() => setSuccess(null), 3000);
       
     } catch (error) {
-      console.error('Update user error:', error);
-      setError('Failed to update user');
+      console.error('Create user error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
+      setError(errorMessage);
+    } finally {
+      setFormLoading(false);
     }
   };
 
+  const resetForm = () => {
+    setNewUser({
+      username: '',
+      password: '',
+      role: 'viewer',
+      first_name: '',
+      last_name: ''
+    });
+    setError(null);
+  };
+
+  const handleCloseModal = () => {
+    setShowCreateModal(false);
+    resetForm();
+  };
+
   const handleDeleteUser = async (userId: number, username: string) => {
+    if (userId === currentUser?.id) {
+      setError('You cannot delete your own account');
+      return;
+    }
+
     if (window.confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
       try {
         setError(null);
@@ -154,12 +221,13 @@ export function UserManagement() {
         await loadUsers();
         setSuccess(`User "${username}" deleted successfully!`);
         
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(null), 3000);
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccess(null), 5000);
         
       } catch (error) {
         console.error('Delete user error:', error);
-        setError('Failed to delete user');
+        const errorMessage = error instanceof Error ? error.message : 'Failed to delete user';
+        setError(errorMessage);
       }
     }
   };
@@ -171,19 +239,21 @@ export function UserManagement() {
       await loadUsers(); // Refresh user list
       setSuccess(`Account "${username}" unlocked successfully!`);
       
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(null), 3000);
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Unlock account error:', error);
-      setError('Failed to unlock account');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to unlock account';
+      setError(errorMessage);
     }
   };
 
+
   const filteredUsers = Array.isArray(users) ? users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
     user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.last_name.toLowerCase().includes(searchTerm.toLowerCase())
+    user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(searchTerm.toLowerCase())
   ) : [];
 
   const getRoleColor = (role: string) => {
@@ -201,7 +271,7 @@ export function UserManagement() {
 
   const getPasswordStrength = (password: string) => {
     let score = 0;
-    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
     if (/[A-Z]/.test(password)) score++;
     if (/[a-z]/.test(password)) score++;
     if (/\d/.test(password)) score++;
@@ -344,9 +414,6 @@ export function UserManagement() {
                   ) : (
                     <div>
                       <div className="text-sm font-medium text-gray-900">{user.username}</div>
-                      {user.email && (
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                      )}
                       <div className="text-sm text-gray-500">{user.first_name} {user.last_name}</div>
                     </div>
                   )}
@@ -505,17 +572,7 @@ export function UserManagement() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Create New User</h3>
               <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setError(null);
-                  setNewUser({
-                    username: '',
-                    password: '',
-                    role: 'viewer',
-                    first_name: '',
-                    last_name: ''
-                  });
-                }}
+                onClick={handleCloseModal}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="h-5 w-5" />
@@ -535,6 +592,9 @@ export function UserManagement() {
                   placeholder="Enter username"
                   required
                 />
+                <div className="mt-1 text-xs text-gray-500">
+                  Username must be unique and contain only letters, numbers, and underscores
+                </div>
               </div>
               
               <div>
@@ -547,7 +607,7 @@ export function UserManagement() {
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter password"
-                  minLength={8}
+                  minLength={12}
                   required
                 />
                 {newUser.password && (
@@ -559,7 +619,7 @@ export function UserManagement() {
                   </div>
                 )}
                 <div className="mt-1 text-xs text-gray-500">
-                  Must be 8+ characters with uppercase, lowercase, numbers, and symbols
+                  Must be 12+ characters with uppercase, lowercase, numbers, and symbols
                 </div>
               </div>
               
@@ -604,17 +664,7 @@ export function UserManagement() {
             
             <div className="flex space-x-3 mt-6">
               <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setError(null);
-                  setNewUser({
-                    username: '',
-                    password: '',
-                    role: 'viewer',
-                    first_name: '',
-                    last_name: ''
-                  });
-                }}
+                onClick={handleCloseModal}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                 disabled={formLoading}
               >

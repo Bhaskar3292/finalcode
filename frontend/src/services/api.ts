@@ -245,10 +245,27 @@ class ApiService {
    */
   async getLocations(): Promise<any[]> {
     try {
+      console.log('Making API call to get locations...');
+      console.log('Auth token:', tokenManager.getAccessToken() ? 'Present' : 'Missing');
+      
       const response = await api.get('/api/facilities/locations/');
-      return Array.isArray(response.data) ? response.data : [];
+      console.log('Locations API response:', response.data);
+      
+      // Handle different response formats
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (response.data && Array.isArray(response.data.results)) {
+        return response.data.results;
+      } else if (response.data && Array.isArray(response.data.locations)) {
+        return response.data.locations;
+      } else {
+        console.warn('Unexpected locations response format:', response.data);
+        return [];
+      }
     } catch (error: any) {
       console.error('Get locations error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       throw new Error(error.response?.data?.error || error.message || 'Failed to get locations');
     }
   }
@@ -382,10 +399,27 @@ class ApiService {
    */
   async getUsers(): Promise<any[]> {
     try {
+      console.log('Making API call to get users...');
+      console.log('Auth token:', tokenManager.getAccessToken() ? 'Present' : 'Missing');
+      
       const response = await api.get('/api/auth/users/');
-      return Array.isArray(response.data) ? response.data : [];
+      console.log('Users API response:', response.data);
+      
+      // Handle different response formats
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (response.data && Array.isArray(response.data.results)) {
+        return response.data.results;
+      } else if (response.data && Array.isArray(response.data.users)) {
+        return response.data.users;
+      } else {
+        console.warn('Unexpected users response format:', response.data);
+        return [];
+      }
     } catch (error: any) {
       console.error('Get users error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       throw new Error(error.response?.data?.error || error.message || 'Failed to get users');
     }
   }
@@ -395,9 +429,60 @@ class ApiService {
    */
   async createUser(data: any): Promise<any> {
     try {
-      const response = await api.post('/api/auth/users/create/', data);
+      // Validate required fields before sending
+      if (!data.username || !data.password || !data.role) {
+        throw new Error('Username, password, and role are required');
+      }
+
+      // Ensure we only send required fields with proper validation
+      const userData = {
+        username: data.username.trim(),
+        password: data.password,
+        role: data.role,
+        first_name: data.first_name?.trim() || '',
+        last_name: data.last_name?.trim() || ''
+      };
+      
+      console.log('Creating user with data:', userData);
+      
+      // Verify authentication token exists
+      const token = tokenManager.getAccessToken();
+      if (!token) {
+        throw new Error('Authentication token missing. Please log in again.');
+      }
+      console.log('Auth token present:', token.substring(0, 20) + '...');
+      
+      const response = await api.post('/api/auth/users/create/', userData);
+      console.log('User creation response:', response.data);
       return response.data;
     } catch (error: any) {
+      console.error('User creation error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        headers: error.config?.headers
+      });
+      
+      // Handle specific error cases
+      if (error.response?.status === 403) {
+        throw new Error('Access denied. Only administrators can create users.');
+      } else if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else if (error.response?.data) {
+        // Handle field-specific errors
+        const errorData = error.response.data;
+        if (typeof errorData === 'object') {
+          const errorMessages = Object.entries(errorData)
+            .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+            .join('; ');
+          throw new Error(errorMessages);
+        }
+      }
+      
       throw new Error(error.response?.data?.error || error.message || 'Failed to create user');
     }
   }

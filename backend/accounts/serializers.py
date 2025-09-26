@@ -185,12 +185,22 @@ class CreateUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'password', 'role', 'first_name', 'last_name']
+        extra_kwargs = {
+            'first_name': {'required': False, 'allow_blank': True},
+            'last_name': {'required': False, 'allow_blank': True},
+        }
     
     def validate_password(self, value):
         try:
             validate_password(value)
         except DjangoValidationError as e:
             raise serializers.ValidationError(list(e.messages))
+        return value
+    
+    def validate_username(self, value):
+        """Validate username uniqueness"""
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError('A user with this username already exists.')
         return value
     
     def create(self, validated_data):
