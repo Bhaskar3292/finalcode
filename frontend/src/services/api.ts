@@ -245,27 +245,10 @@ class ApiService {
    */
   async getLocations(): Promise<any[]> {
     try {
-      console.log('Making API call to get locations...');
-      console.log('Auth token:', tokenManager.getAccessToken() ? 'Present' : 'Missing');
-      
       const response = await api.get('/api/facilities/locations/');
-      console.log('Locations API response:', response.data);
-      
-      // Handle different response formats
-      if (Array.isArray(response.data)) {
-        return response.data;
-      } else if (response.data && Array.isArray(response.data.results)) {
-        return response.data.results;
-      } else if (response.data && Array.isArray(response.data.locations)) {
-        return response.data.locations;
-      } else {
-        console.warn('Unexpected locations response format:', response.data);
-        return [];
-      }
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error: any) {
       console.error('Get locations error:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
       throw new Error(error.response?.data?.error || error.message || 'Failed to get locations');
     }
   }
@@ -399,27 +382,10 @@ class ApiService {
    */
   async getUsers(): Promise<any[]> {
     try {
-      console.log('Making API call to get users...');
-      console.log('Auth token:', tokenManager.getAccessToken() ? 'Present' : 'Missing');
-      
       const response = await api.get('/api/auth/users/');
-      console.log('Users API response:', response.data);
-      
-      // Handle different response formats
-      if (Array.isArray(response.data)) {
-        return response.data;
-      } else if (response.data && Array.isArray(response.data.results)) {
-        return response.data.results;
-      } else if (response.data && Array.isArray(response.data.users)) {
-        return response.data.users;
-      } else {
-        console.warn('Unexpected users response format:', response.data);
-        return [];
-      }
+      return Array.isArray(response.data) ? response.data : [];
     } catch (error: any) {
       console.error('Get users error:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
       throw new Error(error.response?.data?.error || error.message || 'Failed to get users');
     }
   }

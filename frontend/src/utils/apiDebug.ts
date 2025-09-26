@@ -102,25 +102,6 @@ export class ApiDebugger {
   }
 
   /**
-   * Test users and locations endpoints specifically
-   */
-  static async testDataEndpoints(): Promise<void> {
-    console.log('🧪 Testing Data Endpoints...\n');
-    
-    console.log('1. Testing Users Endpoint:');
-    await this.testEndpoint('/api/auth/users/');
-    
-    console.log('\n2. Testing Locations Endpoint:');
-    await this.testEndpoint('/api/facilities/locations/');
-    
-    console.log('\n3. Testing Authentication Status:');
-    const token = localStorage.getItem('access_token');
-    console.log(`   Token present: ${!!token}`);
-    if (token) {
-      console.log(`   Token preview: ${token.substring(0, 20)}...`);
-    }
-  }
-  /**
    * Test logout functionality specifically
    */
   static async testLogout(): Promise<void> {

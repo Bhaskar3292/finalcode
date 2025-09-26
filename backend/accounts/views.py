@@ -333,33 +333,7 @@ class UserListView(generics.ListAPIView):
     def get_queryset(self):
         # Check if user is admin or superuser
         user = self.request.user
-        logger.info(f"UserListView accessed by: {user.username} (role: {user.role}, superuser: {user.is_superuser})")
-        
         if user.is_superuser or user.role == 'admin':
-            queryset = User.objects.all().order_by('-created_at')
-            logger.info(f"Returning {queryset.count()} users")
-            return queryset
-        
-        logger.warning(f"Access denied for user {user.username} - insufficient permissions")
-        return User.objects.none()
-    
-    def list(self, request, *args, **kwargs):
-        """Override list to add debugging and ensure proper response format"""
-        try:
-            queryset = self.get_queryset()
-            serializer = self.get_serializer(queryset, many=True)
-            logger.info(f"Serialized {len(serializer.data)} users")
-            
-            return Response({
-                'users': serializer.data,
-                'count': len(serializer.data)
-            })
-        except Exception as e:
-            logger.error(f"Error in UserListView: {e}")
-            return Response(
-                {'error': 'Failed to fetch users', 'detail': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
             return User.objects.all().order_by('-created_at')
         return User.objects.none()
 

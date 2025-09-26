@@ -37,45 +37,22 @@ export function UserManagement() {
   const { hasPermission, user: currentUser } = useAuthContext();
 
   useEffect(() => {
-    loadUsers();
-  }, []);
-
-  useEffect(() => {
     if (currentUser) {
-      console.log('Current user changed, reloading users...');
       loadUsers();
     }
   }, [currentUser]);
+
   const loadUsers = async () => {
     try {
       setLoading(true);
       setError(null);
       console.log('Loading users from API...');
-      console.log('Current user:', currentUser);
-      console.log('Is authenticated:', currentUser ? 'Yes' : 'No');
-      
       const data = await apiService.getUsers();
       console.log('Users loaded:', data);
-      
-      // Handle different response formats
-      let userList = [];
-      if (Array.isArray(data)) {
-        userList = data;
-      } else if (data && Array.isArray(data.results)) {
-        userList = data.results;
-      } else if (data && Array.isArray(data.users)) {
-        userList = data.users;
-      } else {
-        console.warn('Unexpected data format:', data);
-        userList = [];
-      }
-      
-      console.log('Setting users state:', userList);
-      setUsers(userList);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Users load error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load users';
-      setError(errorMessage);
+      setError('Failed to load users');
       setUsers([]);
     } finally {
       setLoading(false);
