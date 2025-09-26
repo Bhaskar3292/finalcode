@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, MapPin, Phone, Mail, Calendar, User, X, Save } from 'lucide-react';
+import { Building2, MapPin, Phone, Mail, Calendar, User, Eye, Edit, Trash2 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuthContext } from '../contexts/AuthContext';
 import { LocationDashboard } from './LocationDashboard';
@@ -18,44 +18,13 @@ interface Location {
 
 interface LocationManagerProps {
   selectedFacility?: any;
-  showAddLocationModal?: boolean;
-  onCloseAddLocationModal?: () => void;
 }
 
-interface NewLocationData {
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  country: string;
-  phone: string;
-  email: string;
-  manager: string;
-  description: string;
-  facility_type: string;
-}
-
-export function LocationManager({ selectedFacility, showAddLocationModal, onCloseAddLocationModal }: LocationManagerProps) {
+export function LocationManager({ selectedFacility }: LocationManagerProps) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'dashboard'>('list');
-  const [formLoading, setFormLoading] = useState(false);
-  
-  const [newLocation, setNewLocation] = useState<NewLocationData>({
-    name: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    country: 'United States',
-    phone: '',
-    email: '',
-    manager: '',
-    description: '',
-    facility_type: 'gas_station'
-  });
   
   const { hasPermission, user: currentUser } = useAuthContext();
 
@@ -80,109 +49,25 @@ export function LocationManager({ selectedFacility, showAddLocationModal, onClos
     }
   };
 
-  const handleCreateLocation = async () => {
-    try {
-      setFormLoading(true);
-      setError(null);
-      
-      if (!newLocation.name.trim()) {
-        setError('Location name is required');
-        return;
-      }
-
-      // Combine address fields for backend
-      const fullAddress = [
-        newLocation.address,
-        newLocation.city,
-        newLocation.state,
-        newLocation.zip,
-        newLocation.country
-      ].filter(Boolean).join(', ');
-
-      const locationData = {
-        name: newLocation.name.trim(),
-        address: fullAddress,
-        description: [
-          newLocation.description,
-          newLocation.manager ? `Manager: ${newLocation.manager}` : '',
-          newLocation.phone ? `Phone: ${newLocation.phone}` : '',
-          newLocation.email ? `Email: ${newLocation.email}` : '',
-          `Type: ${newLocation.facility_type.replace('_', ' ')}`
-        ].filter(Boolean).join('\n')
-      };
-      
-      const createdLocation = await apiService.createLocation(locationData);
-      setLocations(prev => Array.isArray(prev) ? [createdLocation, ...prev] : [createdLocation]);
-      
-      if (onCloseAddLocationModal) {
-        onCloseAddLocationModal();
-      }
-      resetForm();
-      
-      // Refresh dashboard
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-      
-    } catch (error) {
-      console.error('Create location error:', error);
-      setError('Failed to create location');
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
-  const resetForm = () => {
-    setNewLocation({
-      name: '',
-      address: '',
-      city: '',
-      state: '',
-      zip: '',
-      country: 'United States',
-      phone: '',
-      email: '',
-      manager: '',
-      description: '',
-      facility_type: 'gas_station'
-    });
-    setError(null);
-  };
-
   const handleViewDashboard = (location: Location) => {
     setView('dashboard');
   };
 
-  const updateNewLocationField = (field: keyof NewLocationData, value: string) => {
-    setNewLocation(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleDeleteLocation = async (locationId: number, locationName: string) => {
+    if (window.confirm(`Are you sure you want to delete "${locationName}"? This action cannot be undone.`)) {
+      try {
+        await apiService.deleteLocation(locationId);
+        await loadLocations(); // Refresh the list
+      } catch (error) {
+        setError('Failed to delete location');
+      }
+    }
   };
 
   // Filter locations by selected facility if provided
   const displayLocations = selectedFacility 
     ? locations.filter(location => location.id === selectedFacility.id)
     : locations;
-
-  const facilityTypes = [
-    { value: 'gas_station', label: 'Gas Station' },
-    { value: 'truck_stop', label: 'Truck Stop' },
-    { value: 'storage_facility', label: 'Storage Facility' },
-    { value: 'distribution_center', label: 'Distribution Center' },
-    { value: 'terminal', label: 'Terminal' },
-    { value: 'convenience_store', label: 'Convenience Store' }
-  ];
-
-  const usStates = [
-    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
-    'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
-    'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi',
-    'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico',
-    'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania',
-    'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
-    'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
-  ];
 
   if (!currentUser) {
     return (
@@ -260,13 +145,12 @@ export function LocationManager({ selectedFacility, showAddLocationModal, onClos
                   <span>{selectedFacility.address}</span>
                 </div>
                 <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                  <span>Type: {selectedFacility.type}</span>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    selectedFacility.status === 'Active' 
+                    selectedFacility.is_active 
                       ? 'bg-green-100 text-green-800' 
                       : 'bg-yellow-100 text-yellow-800'
                   }`}>
-                    {selectedFacility.status}
+                    {selectedFacility.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
               </div>
@@ -276,11 +160,11 @@ export function LocationManager({ selectedFacility, showAddLocationModal, onClos
           {/* Facility Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-blue-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">12</div>
+              <div className="text-2xl font-bold text-blue-600">{selectedFacility.tank_count || 0}</div>
               <div className="text-sm text-blue-800">Total Tanks</div>
             </div>
             <div className="bg-green-50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">8</div>
+              <div className="text-2xl font-bold text-green-600">{selectedFacility.permit_count || 0}</div>
               <div className="text-sm text-green-800">Active Permits</div>
             </div>
             <div className="bg-yellow-50 rounded-lg p-4 text-center">
@@ -300,15 +184,15 @@ export function LocationManager({ selectedFacility, showAddLocationModal, onClos
               <div className="space-y-2 text-sm">
                 <div className="flex items-center space-x-2">
                   <User className="h-4 w-4 text-gray-400" />
-                  <span>Manager: {selectedFacility.manager || 'Not specified'}</span>
+                  <span>Manager: {selectedFacility.created_by_username || 'Not specified'}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="h-4 w-4 text-gray-400" />
-                  <span>Phone: {selectedFacility.phone || 'Not specified'}</span>
+                  <span>Phone: Not specified</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Mail className="h-4 w-4 text-gray-400" />
-                  <span>Email: {selectedFacility.email || 'Not specified'}</span>
+                  <span>Email: Not specified</span>
                 </div>
               </div>
             </div>
@@ -337,6 +221,34 @@ export function LocationManager({ selectedFacility, showAddLocationModal, onClos
                     <h3 className="text-lg font-semibold text-gray-900">{location.name}</h3>
                     <p className="text-sm text-gray-500">Created by {location.created_by_username}</p>
                   </div>
+                </div>
+                
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => console.log('View location', location.id)}
+                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    title="View location"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  {(currentUser?.is_superuser || hasPermission('edit_locations')) && (
+                    <button
+                      onClick={() => console.log('Edit location', location.id)}
+                      className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Edit location"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                  )}
+                  {(currentUser?.is_superuser || hasPermission('delete_locations')) && (
+                    <button
+                      onClick={() => handleDeleteLocation(location.id, location.name)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Delete location"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -384,254 +296,7 @@ export function LocationManager({ selectedFacility, showAddLocationModal, onClos
         <div className="text-center py-12">
           <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No locations found</h3>
-          <p className="text-gray-500 mb-4">Get started by creating your first location.</p>
-        </div>
-      )}
-
-      {/* Create Location Modal */}
-      {showAddLocationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <MapPin className="h-6 w-6 text-green-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900">Add New Location</h3>
-              </div>
-              <button
-                onClick={() => {
-                  if (onCloseAddLocationModal) {
-                    onCloseAddLocationModal();
-                  }
-                  resetForm();
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            {/* Modal Content */}
-            <div className="p-6 space-y-6">
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <X className="h-5 w-5 text-red-600 mr-2" />
-                    <span className="text-red-800">{error}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Basic Information */}
-              <div>
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Location Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={newLocation.name}
-                      onChange={(e) => updateNewLocationField('name', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="e.g., Downtown Station A"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Facility Type
-                    </label>
-                    <select
-                      value={newLocation.facility_type}
-                      onChange={(e) => updateNewLocationField('facility_type', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      {facilityTypes.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Address Information */}
-              <div>
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Address Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Street Address
-                    </label>
-                    <input
-                      type="text"
-                      value={newLocation.address}
-                      onChange={(e) => updateNewLocationField('address', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="e.g., 123 Main Street"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      value={newLocation.city}
-                      onChange={(e) => updateNewLocationField('city', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="e.g., Los Angeles"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      State
-                    </label>
-                    <select
-                      value={newLocation.state}
-                      onChange={(e) => updateNewLocationField('state', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="">Select State</option>
-                      {usStates.map(state => (
-                        <option key={state} value={state}>{state}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ZIP Code
-                    </label>
-                    <input
-                      type="text"
-                      value={newLocation.zip}
-                      onChange={(e) => updateNewLocationField('zip', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="e.g., 90210"
-                      pattern="[0-9]{5}(-[0-9]{4})?"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Country
-                    </label>
-                    <select
-                      value={newLocation.country}
-                      onChange={(e) => updateNewLocationField('country', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="United States">United States</option>
-                      <option value="Canada">Canada</option>
-                      <option value="Mexico">Mexico</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Information */}
-              <div>
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <User className="h-4 w-4 inline mr-1" />
-                      Manager Name
-                    </label>
-                    <input
-                      type="text"
-                      value={newLocation.manager}
-                      onChange={(e) => updateNewLocationField('manager', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="e.g., John Smith"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Phone className="h-4 w-4 inline mr-1" />
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={newLocation.phone}
-                      onChange={(e) => updateNewLocationField('phone', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="e.g., (555) 123-4567"
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Mail className="h-4 w-4 inline mr-1" />
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={newLocation.email}
-                      onChange={(e) => updateNewLocationField('email', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="e.g., manager@facility.com"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Details */}
-              <div>
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Additional Details</h4>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={newLocation.description}
-                    onChange={(e) => updateNewLocationField('description', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    rows={4}
-                    placeholder="Enter additional details about this location..."
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="flex space-x-3 p-6 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  if (onCloseAddLocationModal) {
-                    onCloseAddLocationModal();
-                  }
-                  resetForm();
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                disabled={formLoading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateLocation}
-                disabled={formLoading || !newLocation.name.trim()}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {formLoading ? (
-                  <div className="flex items-center justify-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Creating...</span>
-                  </div>
-                ) : (
-                  'Create Location'
-                )}
-              </button>
-            </div>
-          </div>
+          <p className="text-gray-500 mb-4">Get started by creating your first location using the location button in the top menu.</p>
         </div>
       )}
     </div>

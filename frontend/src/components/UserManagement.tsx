@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, CreditCard as Edit, Trash2, Save, X, UserPlus, Search, Shield, Lock } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Save, X, UserPlus, Search, Shield, Lock, AlertTriangle } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuthContext } from '../contexts/AuthContext';
 
@@ -12,20 +12,24 @@ interface User {
   role: 'admin' | 'contributor' | 'viewer';
   is_active: boolean;
   created_at: string;
+  two_factor_enabled?: boolean;
+  is_account_locked?: boolean;
+  failed_login_attempts?: number;
 }
 
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
   const [newUser, setNewUser] = useState({
     username: '',
     password: '',
     role: 'viewer' as const,
-    email: '',
     first_name: '',
     last_name: ''
   });
@@ -42,48 +46,45 @@ export function UserManagement() {
     try {
       setLoading(true);
       setError(null);
+      console.log('Loading users from API...');
       const data = await apiService.getUsers();
+      console.log('Users loaded:', data);
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
-      setError('Failed to load users');
       console.error('Users load error:', error);
+      setError('Failed to load users');
       setUsers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUnlockAccount = async (userId: number) => {
-    try {
-      await apiService.unlockUserAccount(userId);
-      await loadUsers(); // Refresh user list
-      setError('');
-    } catch (error) {
-      setError('Failed to unlock account');
-    }
-  };
-
   const handleCreateUser = async () => {
     try {
+      setFormLoading(true);
       setError(null);
+      setSuccess(null);
       
-      // Validate password strength
-      if (newUser.password.length < 12) {
-        setError('Password must be at least 12 characters long');
-        return;
-      }
-      
+      // Validate required fields
       if (!newUser.username.trim()) {
         setError('Username is required');
         return;
       }
       
-      if (!newUser.email.trim()) {
-        setError('Email is required');
+      if (!newUser.password.trim()) {
+        setError('Password is required');
         return;
       }
       
+      if (newUser.password.length < 8) {
+        setError('Password must be at least 8 characters long');
+        return;
+      }
+      
+      console.log('Creating user with data:', newUser);
+      
       const createdUser = await apiService.createUser(newUser);
+      console.log('User created successfully:', createdUser);
       
       // Reload the entire user list to ensure consistency
       await loadUsers();
@@ -93,52 +94,69 @@ export function UserManagement() {
         username: '',
         password: '',
         role: 'viewer',
-        email: '',
         first_name: '',
         last_name: ''
       });
-      setError(null);
       
-      // Show success message
-      setTimeout(() => {
-        alert(`User "${newUser.username}" created successfully!`);
-      }, 100);
+      setSuccess(`User "${newUser.username}" created successfully!`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
       
     } catch (error) {
       console.error('Create user error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
       setError(errorMessage);
+    } finally {
+      setFormLoading(false);
     }
   };
 
   const handleUpdateUser = async (user: User) => {
     try {
+      setError(null);
+      console.log('Updating user:', user);
+      
       const updatedUser = await apiService.updateUser(user.id, {
         username: user.username,
-        email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
         role: user.role,
         is_active: user.is_active
       });
       
+      console.log('User updated successfully:', updatedUser);
+      
       // Reload the entire user list to ensure consistency
       await loadUsers();
       setEditingUser(null);
-      setError(null);
+      setSuccess('User updated successfully!');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      
     } catch (error) {
       console.error('Update user error:', error);
       setError('Failed to update user');
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+  const handleDeleteUser = async (userId: number, username: string) => {
+    if (window.confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
       try {
+        setError(null);
+        console.log('Deleting user:', userId);
+        
         await apiService.deleteUser(userId);
+        console.log('User deleted successfully');
+        
         // Reload the entire user list to ensure consistency
         await loadUsers();
-        setError(null);
+        setSuccess(`User "${username}" deleted successfully!`);
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
+        
       } catch (error) {
         console.error('Delete user error:', error);
         setError('Failed to delete user');
@@ -146,9 +164,24 @@ export function UserManagement() {
     }
   };
 
+  const handleUnlockAccount = async (userId: number, username: string) => {
+    try {
+      setError(null);
+      await apiService.unlockUserAccount(userId);
+      await loadUsers(); // Refresh user list
+      setSuccess(`Account "${username}" unlocked successfully!`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error) {
+      console.error('Unlock account error:', error);
+      setError('Failed to unlock account');
+    }
+  };
+
   const filteredUsers = Array.isArray(users) ? users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
     user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.last_name.toLowerCase().includes(searchTerm.toLowerCase())
   ) : [];
@@ -168,7 +201,7 @@ export function UserManagement() {
 
   const getPasswordStrength = (password: string) => {
     let score = 0;
-    if (password.length >= 12) score++;
+    if (password.length >= 8) score++;
     if (/[A-Z]/.test(password)) score++;
     if (/[a-z]/.test(password)) score++;
     if (/\d/.test(password)) score++;
@@ -221,6 +254,26 @@ export function UserManagement() {
         )}
       </div>
 
+      {/* Success Message */}
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <Shield className="h-5 w-5 text-green-600 mr-2" />
+            <span className="text-green-800">{success}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
+            <span className="text-red-800">{error}</span>
+          </div>
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -232,15 +285,6 @@ export function UserManagement() {
           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <X className="h-5 w-5 text-red-600 mr-2" />
-            <span className="text-red-800">{error}</span>
-          </div>
-        </div>
-      )}
 
       {/* Users Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -280,13 +324,6 @@ export function UserManagement() {
                         className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
                         placeholder="Username"
                       />
-                      <input
-                        type="email"
-                        value={editingUser.email}
-                        onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                        placeholder="Email"
-                      />
                       <div className="grid grid-cols-2 gap-2">
                         <input
                           type="text"
@@ -307,7 +344,9 @@ export function UserManagement() {
                   ) : (
                     <div>
                       <div className="text-sm font-medium text-gray-900">{user.username}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                      {user.email && (
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                      )}
                       <div className="text-sm text-gray-500">{user.first_name} {user.last_name}</div>
                     </div>
                   )}
@@ -330,42 +369,44 @@ export function UserManagement() {
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  {editingUser?.id === user.id ? (
-                    <select
-                      value={editingUser.is_active ? 'active' : 'inactive'}
-                      onChange={(e) => setEditingUser({...editingUser, is_active: e.target.value === 'active'})}
-                      className="px-2 py-1 border border-gray-300 rounded text-sm"
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  ) : (
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                      user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {user.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  )}
-                      {(user as any).is_account_locked && (
-                        <div>
-                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-                            Locked
-                          </span>
-                        </div>
-                      )}
+                  <div className="space-y-1">
+                    {editingUser?.id === user.id ? (
+                      <select
+                        value={editingUser.is_active ? 'active' : 'inactive'}
+                        onChange={(e) => setEditingUser({...editingUser, is_active: e.target.value === 'active'})}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    ) : (
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    )}
+                    {user.is_account_locked && (
+                      <div>
+                        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                          Locked
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        (user as any).two_factor_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        user.two_factor_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}>
-                        2FA: {(user as any).two_factor_enabled ? 'On' : 'Off'}
+                        2FA: {user.two_factor_enabled ? 'On' : 'Off'}
                       </span>
                     </div>
-                    {(user as any).failed_login_attempts > 0 && (
+                    {user.failed_login_attempts && user.failed_login_attempts > 0 && (
                       <div className="text-xs text-yellow-600">
-                        {(user as any).failed_login_attempts} failed attempts
+                        {user.failed_login_attempts} failed attempts
                       </div>
                     )}
                   </div>
@@ -380,24 +421,27 @@ export function UserManagement() {
                         <button
                           onClick={() => handleUpdateUser(editingUser)}
                           className="text-green-600 hover:text-green-800"
+                          title="Save changes"
                         >
                           <Save className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setEditingUser(null)}
                           className="text-gray-600 hover:text-gray-800"
+                          title="Cancel edit"
                         >
                           <X className="h-4 w-4" />
                         </button>
                       </>
                     ) : (
                       <>
-                        {(user as any).is_account_locked && (currentUser?.is_superuser || hasPermission('edit_users')) && (
+                        {user.is_account_locked && (currentUser?.is_superuser || hasPermission('edit_users')) && (
                           <button
-                            onClick={() => handleUnlockAccount(user.id)}
+                            onClick={() => handleUnlockAccount(user.id, user.username)}
                             className="text-yellow-600 hover:text-yellow-800 text-xs px-2 py-1 border border-yellow-300 rounded"
                             title="Unlock Account"
                           >
+                            <Lock className="h-3 w-3 inline mr-1" />
                             Unlock
                           </button>
                         )}
@@ -405,14 +449,16 @@ export function UserManagement() {
                           <button
                             onClick={() => setEditingUser(user)}
                             className="text-blue-600 hover:text-blue-800"
+                            title="Edit user"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                         )}
-                        {(currentUser?.is_superuser || hasPermission('delete_users')) && (
+                        {(currentUser?.is_superuser || hasPermission('delete_users')) && user.id !== currentUser.id && (
                           <button
-                            onClick={() => handleDeleteUser(user.id)}
+                            onClick={() => handleDeleteUser(user.id, user.username)}
                             className="text-red-600 hover:text-red-800"
+                            title="Delete user"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -425,6 +471,31 @@ export function UserManagement() {
             ))}
           </tbody>
         </table>
+
+        {/* Empty State */}
+        {filteredUsers.length === 0 && !loading && (
+          <div className="px-6 py-12 text-center">
+            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {searchTerm ? 'No users found' : 'No users yet'}
+            </h3>
+            <p className="text-gray-500 mb-4">
+              {searchTerm 
+                ? `No users match your search for "${searchTerm}"`
+                : 'Get started by creating your first user.'
+              }
+            </p>
+            {!searchTerm && (currentUser?.is_superuser || hasPermission('create_users')) && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mx-auto"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>Create First User</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Create User Modal */}
@@ -434,7 +505,17 @@ export function UserManagement() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Create New User</h3>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setError(null);
+                  setNewUser({
+                    username: '',
+                    password: '',
+                    role: 'viewer',
+                    first_name: '',
+                    last_name: ''
+                  });
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="h-5 w-5" />
@@ -443,7 +524,9 @@ export function UserManagement() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Username *
+                </label>
                 <input
                   type="text"
                   value={newUser.username}
@@ -455,14 +538,16 @@ export function UserManagement() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password *
+                </label>
                 <input
                   type="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter password"
-                  minLength={12}
+                  minLength={8}
                   required
                 />
                 {newUser.password && (
@@ -474,12 +559,14 @@ export function UserManagement() {
                   </div>
                 )}
                 <div className="mt-1 text-xs text-gray-500">
-                  Must be 12+ characters with uppercase, lowercase, numbers, and symbols
+                  Must be 8+ characters with uppercase, lowercase, numbers, and symbols
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role *
+                </label>
                 <select
                   value={newUser.role}
                   onChange={(e) => setNewUser({...newUser, role: e.target.value as any})}
@@ -489,17 +576,6 @@ export function UserManagement() {
                   <option value="contributor">Contributor</option>
                   <option value="admin">Administrator</option>
                 </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
-                <input
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter email"
-                />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -528,17 +604,35 @@ export function UserManagement() {
             
             <div className="flex space-x-3 mt-6">
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setError(null);
+                  setNewUser({
+                    username: '',
+                    password: '',
+                    role: 'viewer',
+                    first_name: '',
+                    last_name: ''
+                  });
+                }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                disabled={formLoading}
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateUser}
-                disabled={passwordStrength.strength === 'Weak' || !newUser.username || !newUser.password}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+                disabled={formLoading || passwordStrength.strength === 'Weak' || !newUser.username || !newUser.password}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create User
+                {formLoading ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Creating...</span>
+                  </div>
+                ) : (
+                  'Create User'
+                )}
               </button>
             </div>
           </div>

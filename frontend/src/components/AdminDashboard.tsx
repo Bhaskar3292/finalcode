@@ -25,7 +25,6 @@ export function AdminDashboard() {
 
   const tabs = [
     { id: 'users', label: 'User Management' },
-    { id: 'dashboard-access', label: 'Dashboard Access Control' },
   ];
 
   // Ensure superusers can access admin dashboard
@@ -46,10 +45,6 @@ export function AdminDashboard() {
           <UserManagement />
         );
 
-      case 'dashboard-access':
-        return (
-          <DashboardAccessControl />
-        );
 
       default:
         return null;
