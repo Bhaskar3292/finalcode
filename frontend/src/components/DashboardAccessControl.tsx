@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Shield, 
-  Eye, 
-  EyeOff, 
-  Save, 
-  RotateCcw,
-  Settings,
-  Building2,
-  Zap,
-  FileText,
-  Users,
-  AlertTriangle
-} from 'lucide-react';
+import { Shield, Eye, EyeOff, Save, RotateCcw, Settings, Building2, Zap, FileText, Users, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 
 interface TabPermission {
