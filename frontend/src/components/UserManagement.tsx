@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, CreditCard as Edit, Trash2, Save, X, UserPlus, Search } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Save, X, UserPlus, Search, Shield, Lock } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuthContext } from '../contexts/AuthContext';
 
@@ -29,6 +29,7 @@ export function UserManagement() {
     first_name: '',
     last_name: ''
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
   const { hasPermission, user: currentUser } = useAuthContext();
 
@@ -65,14 +66,27 @@ export function UserManagement() {
 
   const handleCreateUser = async () => {
     try {
+      setFormErrors({});
+      
       // Validate password strength
       if (newUser.password.length < 12) {
-        setError('Password must be at least 12 characters long');
+        setFormErrors({ password: 'Password must be at least 12 characters long' });
+        return;
+      }
+      
+      if (!newUser.username.trim()) {
+        setFormErrors({ username: 'Username is required' });
+        return;
+      }
+      
+      if (!newUser.email.trim()) {
+        setFormErrors({ email: 'Email is required' });
         return;
       }
       
       const createdUser = await apiService.createUser(newUser);
-      setUsers(prev => Array.isArray(prev) ? [createdUser.user, ...prev] : [createdUser.user]);
+      const newUserData = createdUser.user || createdUser;
+      setUsers(prev => Array.isArray(prev) ? [newUserData, ...prev] : [newUserData]);
       setShowCreateModal(false);
       setNewUser({
         username: '',
@@ -82,10 +96,12 @@ export function UserManagement() {
         first_name: '',
         last_name: ''
       });
+      setFormErrors({});
       setError(null);
+      setSuccess('User created successfully');
     } catch (error) {
       console.error('Create user error:', error);
-      setError('Failed to create user');
+      setError(error instanceof Error ? error.message : 'Failed to create user');
     }
   };
 
@@ -100,12 +116,14 @@ export function UserManagement() {
         is_active: user.is_active
       });
       
-      setUsers(prev => Array.isArray(prev) ? prev.map(u => u.id === user.id ? updatedUser.user : u) : []);
+      const updatedUserData = updatedUser.user || updatedUser;
+      setUsers(prev => Array.isArray(prev) ? prev.map(u => u.id === user.id ? updatedUserData : u) : []);
       setEditingUser(null);
       setError(null);
+      setSuccess('User updated successfully');
     } catch (error) {
       console.error('Update user error:', error);
-      setError('Failed to update user');
+      setError(error instanceof Error ? error.message : 'Failed to update user');
     }
   };
 
@@ -115,9 +133,10 @@ export function UserManagement() {
         await apiService.deleteUser(userId);
         setUsers(prev => Array.isArray(prev) ? prev.filter(u => u.id !== userId) : []);
         setError(null);
+        setSuccess('User deleted successfully');
       } catch (error) {
         console.error('Delete user error:', error);
-        setError('Failed to delete user');
+        setError(error instanceof Error ? error.message : 'Failed to delete user');
       }
     }
   };
@@ -157,6 +176,7 @@ export function UserManagement() {
   };
 
   const passwordStrength = getPasswordStrength(newUser.password);
+  const [success, setSuccess] = useState('');
 
   if (!currentUser) {
     return (
@@ -214,6 +234,15 @@ export function UserManagement() {
           <div className="flex items-center">
             <X className="h-5 w-5 text-red-600 mr-2" />
             <span className="text-red-800">{error}</span>
+          </div>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <Shield className="h-5 w-5 text-green-600 mr-2" />
+            <span className="text-green-800">{success}</span>
           </div>
         </div>
       )}
@@ -424,10 +453,15 @@ export function UserManagement() {
                   type="text"
                   value={newUser.username}
                   onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    formErrors.username ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   placeholder="Enter username"
                   required
                 />
+                {formErrors.username && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.username}</p>
+                )}
               </div>
               
               <div>
@@ -436,11 +470,16 @@ export function UserManagement() {
                   type="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    formErrors.password ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   placeholder="Enter password"
                   minLength={12}
                   required
                 />
+                {formErrors.password && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.password}</p>
+                )}
                 {newUser.password && (
                   <div className="mt-1 flex items-center space-x-2">
                     <span className="text-xs text-gray-500">Strength:</span>
@@ -473,9 +512,14 @@ export function UserManagement() {
                   type="email"
                   value={newUser.email}
                   onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    formErrors.email ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   placeholder="Enter email"
                 />
+                {formErrors.email && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+                )}
               </div>
               
               <div className="grid grid-cols-2 gap-4">

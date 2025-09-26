@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { 
   Users, 
-  Plus,
-  UserPlus,
-  Search,
-  Shield
+  Shield,
+  Settings,
+  Eye,
+  EyeOff,
+  Save,
+  RotateCcw
 } from 'lucide-react';
 import { TabNavigation } from './TabNavigation';
 import { UserManagement } from './UserManagement';
 import { PermissionsManager } from './PermissionsManager';
+import { DashboardAccessControl } from './DashboardAccessControl';
 import { useAuthContext } from '../contexts/AuthContext';
 
 /**
@@ -23,6 +26,7 @@ export function AdminDashboard() {
   const tabs = [
     { id: 'users', label: 'User Management' },
     { id: 'permissions', label: 'Permissions Management' },
+    { id: 'dashboard-access', label: 'Dashboard Access Control' },
   ];
 
   // Ensure superusers can access admin dashboard
@@ -46,6 +50,11 @@ export function AdminDashboard() {
       case 'permissions':
         return (
           <PermissionsManager />
+        );
+
+      case 'dashboard-access':
+        return (
+          <DashboardAccessControl />
         );
 
       default:

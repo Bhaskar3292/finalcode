@@ -1,6 +1,15 @@
+#!/usr/bin/env python
 """
 Interactive management command to create admin users with comprehensive input validation
 """
+import os
+import sys
+import django
+
+# Setup Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'facility_management.settings')
+django.setup()
+
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -296,3 +305,8 @@ class Command(BaseCommand):
         self.stdout.write('   • Monitor audit logs regularly')
         
         self.stdout.write('\n🎉 Your admin user is ready to use!')
+
+
+if __name__ == "__main__":
+    command = Command()
+    command.handle()

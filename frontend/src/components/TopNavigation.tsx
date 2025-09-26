@@ -8,22 +8,24 @@ import {
   LogOut, 
   User, 
   Settings,
-  Building2
+  Building2,
+  Plus
 } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface TopNavigationProps {
   selectedFacility: any;
   onFacilitySelect: (facility: any) => void;
   onViewChange: (view: string) => void;
+  onShowAddLocation?: () => void;
 }
 
-export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange }: TopNavigationProps) {
+export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange, onShowAddLocation }: TopNavigationProps) {
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFacilityDropdown, setShowFacilityDropdown] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuthContext();
 
   const handleLogout = async () => {
     await logout();
@@ -159,6 +161,18 @@ export function TopNavigation({ selectedFacility, onFacilitySelect, onViewChange
 
         {/* Right side - User menu and notifications */}
         <div className="flex items-center space-x-4 min-w-0 flex-1 justify-end">
+          {/* Add Location Button */}
+          {(user?.is_superuser || hasPermission('create_locations')) && onShowAddLocation && (
+            <button
+              onClick={onShowAddLocation}
+              className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              title="Add New Location"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add Location</span>
+            </button>
+          )}
+          
           <div className="text-sm text-gray-600">
             <span className="font-medium truncate">{user?.organization}</span>
           </div>

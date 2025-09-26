@@ -10,15 +10,17 @@ import { ProfilePanel } from './ProfilePanel';
 interface MainContentProps {
   activeView: string;
   selectedFacility?: any;
+  showAddLocationModal?: boolean;
+  onCloseAddLocationModal?: () => void;
 }
 
-export function MainContent({ activeView, selectedFacility }: MainContentProps) {
+export function MainContent({ activeView, selectedFacility, showAddLocationModal, onCloseAddLocationModal }: MainContentProps) {
   const renderContent = () => {
     switch (activeView) {
       case 'dashboard':
         return <FacilityDashboard selectedFacility={selectedFacility} />;
       case 'facilities':
-        return <LocationManager />;
+        return <LocationManager showAddLocationModal={showAddLocationModal} onCloseAddLocationModal={onCloseAddLocationModal} />;
       case 'tanks':
         return <TankManagement selectedFacility={selectedFacility} />;
       case 'releases':

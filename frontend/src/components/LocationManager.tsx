@@ -16,6 +16,11 @@ interface Location {
   permit_count?: number;
 }
 
+interface LocationManagerProps {
+  showAddLocationModal?: boolean;
+  onCloseAddLocationModal?: () => void;
+}
+
 interface NewLocationData {
   name: string;
   address: string;
@@ -30,13 +35,12 @@ interface NewLocationData {
   facility_type: string;
 }
 
-export function LocationManager() {
+export function LocationManager({ showAddLocationModal, onCloseAddLocationModal }: LocationManagerProps) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [view, setView] = useState<'list' | 'dashboard'>('list');
   const [formLoading, setFormLoading] = useState(false);
@@ -111,7 +115,9 @@ export function LocationManager() {
       
       const createdLocation = await apiService.createLocation(locationData);
       setLocations(prev => Array.isArray(prev) ? [createdLocation, ...prev] : [createdLocation]);
-      setShowCreateModal(false);
+      if (onCloseAddLocationModal) {
+        onCloseAddLocationModal();
+      }
       resetForm();
     } catch (error) {
       console.error('Create location error:', error);
@@ -260,7 +266,7 @@ export function LocationManager() {
       </div>
 
       {/* Search Bar with Add Location Button */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -271,16 +277,6 @@ export function LocationManager() {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        
-        {(currentUser?.is_superuser || hasPermission('create_locations')) && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center justify-center p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            title="Add New Location"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-        )}
       </div>
 
       {error && (
@@ -420,7 +416,7 @@ export function LocationManager() {
           </p>
           {(currentUser?.is_superuser || hasPermission('create_locations')) && !searchTerm && (
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => onCloseAddLocationModal && onCloseAddLocationModal()}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mx-auto"
             >
               <Plus className="h-4 w-4" />
@@ -431,7 +427,7 @@ export function LocationManager() {
       )}
 
       {/* Create Location Modal */}
-      {showCreateModal && (
+      {showAddLocationModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
@@ -444,7 +440,9 @@ export function LocationManager() {
               </div>
               <button
                 onClick={() => {
-                  setShowCreateModal(false);
+                  if (onCloseAddLocationModal) {
+                    onCloseAddLocationModal();
+                  }
                   resetForm();
                 }}
                 className="text-gray-400 hover:text-gray-600"
@@ -646,7 +644,9 @@ export function LocationManager() {
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => {
-                  setShowCreateModal(false);
+                  if (onCloseAddLocationModal) {
+                    onCloseAddLocationModal();
+                  }
                   resetForm();
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
