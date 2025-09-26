@@ -1,18 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X, 
-  MapPin, 
-  Search,
-  Phone,
-  Mail,
-  Calendar,
-  User
-} from 'lucide-react';
+import { Building2, Plus, CreditCard as Edit, Trash2, Save, X, MapPin, Search, Phone, Mail, Calendar, User } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuthContext } from '../contexts/AuthContext';
 import { LocationDashboard } from './LocationDashboard';
